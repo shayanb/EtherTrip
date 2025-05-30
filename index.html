@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ethereum Psychedelic Visualizer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="canvas-container"></div>
+    
+    <div id="controls" class="controls-panel">
+        <h2>Psychedelic Controls</h2>
+        
+        <div class="control-section">
+            <h3>Connection</h3>
+            <div class="control-group">
+                <label for="rpcEndpoint">RPC Endpoint</label>
+                <input type="text" id="rpcEndpoint" value="wss://mainnet.infura.io/ws/v3/YOUR_API_KEY" placeholder="Enter WebSocket RPC URL">
+            </div>
+            <button id="connectBtn" class="connect-btn">Connect to Ethereum</button>
+            <div id="connectionStatus" class="status">Disconnected</div>
+        </div>
+        
+        <div class="control-section">
+            <h3>Sound Style</h3>
+            <div class="control-group">
+                <label for="soundStyle">Audio Engine</label>
+                <select id="soundStyle">
+                    <option value="retro" selected>Retro Synth</option>
+                    <option value="piano">Piano</option>
+                    <option value="acid">Acid Techno</option>
+                    <option value="jazz">Jazz</option>
+                    <option value="electronic">Electronic</option>
+                    <option value="minimal">Minimal</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="control-section">
+            <h3>Audio Settings</h3>
+            <div class="control-group">
+                <label for="masterVolume">Master Volume</label>
+                <input type="range" id="masterVolume" min="0" max="100" value="50">
+            </div>
+            <div class="control-group">
+                <label for="transactionPitch">Transaction Pitch</label>
+                <input type="range" id="transactionPitch" min="100" max="1000" value="440">
+            </div>
+            <div class="control-group">
+                <label for="blockBass">Block Bass Frequency</label>
+                <input type="range" id="blockBass" min="20" max="200" value="80">
+            </div>
+            <div class="control-group">
+                <label for="reverbAmount">Reverb Amount</label>
+                <input type="range" id="reverbAmount" min="0" max="100" value="30">
+            </div>
+            <div class="control-group">
+                <label for="filterCutoff">Filter Cutoff</label>
+                <input type="range" id="filterCutoff" min="200" max="5000" value="2000">
+            </div>
+            <div class="control-group">
+                <label for="filterResonance">Filter Resonance</label>
+                <input type="range" id="filterResonance" min="1" max="30" value="10">
+            </div>
+            <div class="control-group">
+                <label for="delayTime">Delay Time</label>
+                <input type="range" id="delayTime" min="0" max="1000" value="375">
+            </div>
+            <div class="control-group">
+                <label for="delayFeedback">Delay Feedback</label>
+                <input type="range" id="delayFeedback" min="0" max="90" value="50">
+            </div>
+        </div>
+        
+        <div class="control-section">
+            <h3>Visual Settings</h3>
+            <div class="control-group">
+                <label for="colorIntensity">Color Intensity</label>
+                <input type="range" id="colorIntensity" min="0" max="100" value="50">
+            </div>
+            <div class="control-group">
+                <label for="particleCount">Particle Density</label>
+                <input type="range" id="particleCount" min="100" max="10000" value="1000">
+            </div>
+            <div class="control-group">
+                <label for="rotationSpeed">Rotation Speed</label>
+                <input type="range" id="rotationSpeed" min="0" max="100" value="50">
+            </div>
+            <div class="control-group">
+                <label for="waveAmplitude">Wave Amplitude</label>
+                <input type="range" id="waveAmplitude" min="0" max="100" value="50">
+            </div>
+            <div class="control-group">
+                <label for="showAddressGraph">
+                    <input type="checkbox" id="showAddressGraph" checked>
+                    Show Address Graph
+                </label>
+            </div>
+        </div>
+    </div>
+    
+    <div id="floatingControls" class="floating-controls">
+        <button id="toggleControls" class="floating-btn" title="Hide Controls">✕</button>
+        <button id="muteBtn" class="floating-btn" title="Mute">🔊</button>
+        <button id="pauseBtn" class="floating-btn" title="Pause">⏸️</button>
+    </div>
+    
+    <div id="stats" class="stats-panel">
+        <div>Blocks: <span id="blockCount">0</span></div>
+        <div>Transactions: <span id="txCount">0</span></div>
+        <div>ERC20 Transfers: <span id="erc20Count">0</span></div>
+        <div>Gas Price: <span id="gasPrice">0</span> Gwei</div>
+        
+        <div class="stats-footer">
+            <div class="social-links">
+                <a href="https://x.com/sbetamc" target="_blank" class="social-link" title="Follow on X">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                    </svg>
+                </a>
+                <a href="https://github.com/sbetamc/eth-visualizer" target="_blank" class="social-link" title="View on GitHub">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                    </svg>
+                </a>
+            </div>
+            <div class="version">v1.0.0</div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.9.0/dist/web3.min.js"></script>
+    <script src="audio.js"></script>
+    <script src="ethereum.js"></script>
+    <script src="visualizer.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
