@@ -1,36 +1,27 @@
-# Ethereum Psychedelic Visualizer 🌈🎵
+# EtherTrip - Psychedelic Ethereum Visualizer 🌈🎵
 
-A mind-blowing, psychedelic visualization of the Ethereum blockchain that transforms transactions and blocks into an audiovisual experience.
+Take a psychedelic journey through the Ethereum blockchain with real-time 3D visualization and immersive audio synthesis.
 
 ## Features
 
-- **Real-time Blockchain Streaming**: Connects to Ethereum via WebSocket RPC to stream live transactions and blocks
-- **Pending Transaction Stars**: Visualizes pending transactions as distant twinkling stars with ethereal sounds
-- **Sequential Transaction Processing**: Spreads transactions over 12-second block time for rhythmic visualization
-- **Smart Contract Shooting Stars**: Contract calls appear as colored shooting stars with trails based on function selectors
-- **Spatial Universe Growth**: Blocks grow spatially in branches creating an expanding 3D blockchain universe
-- **Open World Camera**: Camera automatically follows universe growth with smooth movement
-- **Interactive 3D Navigation**: Click and drag to rotate view, scroll to zoom in/out
-- **Hover Information**: Displays transaction details, block info, and address activity on mouse hover
-- **Address Graph Visualization**: See transaction flows between addresses with animated connections
-- **Differentiated Transfer Types**: ETH transfers show as solid tetrahedrons, ERC20 as wireframe octahedrons
-- **ERC20 Token Support**: Tracks and visualizes ERC20 Transfer events with unique sounds
-- **Block Constellations**: Blocks appear as star constellations distributed across 3D space
-- **Value-Based Audio**: Transaction sounds vary in pitch, volume, and duration based on transaction value
-- **Multiple Sound Styles**: Choose from Acid Techno, Jazz, Electronic, Piano, or Minimal sound styles
-- **Gas Price Background Effects**: Background color pulses and throbs based on current gas prices with smooth transitions
-- **Psychedelic 3D Visualization**: Dynamic particle systems, morphing geometries, and vibrant colors
-- **Acid Techno Audio Engine**: 303-style bass, filtered sequences, and rhythmic drum patterns
-- **Audio Controls**: Mute and pause buttons for controlling sound playback
-- **Persistent Settings**: RPC endpoint is saved between sessions
-- **Floating Controls**: Minimizable control panel with floating buttons for quick access
-- **Interactive Controls**: Customize visual effects, audio parameters, and connection settings
+- **Pure Graph Visualization**: Spheres (EOA addresses) and pyramids (smart contracts) connected by animated transaction edges
+- **Real-time Blockchain Streaming**: Live transaction and block data via WebSocket RPC connections
+- **Smart Contract Distinction**: Randomized colorful pyramid shapes for visual contract identification  
+- **Persistent Graph Edges**: Transaction connections remain visible for full block duration (12+ seconds)
+- **Distance-Adaptive Scaling**: Objects remain visible when zooming out to large distances
+- **Interactive 3D Navigation**: Full camera controls with orbit, zoom, and pan
+- **Multiple RPC Providers**: Support for Infura, Alchemy, Tenderly, and free public nodes
+- **Advanced Audio Engine**: 6 sound styles (Retro Synth, Piano, Acid Techno, Jazz, Electronic, Minimal)
+- **Value-Based Audio**: Transaction sounds reflect ETH amounts and gas prices
+- **ERC20 Token Support**: Visualizes token transfers with distinct audio and visual cues
+- **Responsive UI**: Clean controls panel with floating buttons and connection status
 
 ## Setup
 
 1. **Clone or download this project**
 
 2. **Get an Ethereum RPC endpoint**:
+   - you can use the publicly available ones but they will be rate limited or might be down. 
    - Sign up for a free account at [Infura](https://infura.io) or [Alchemy](https://www.alchemy.com)
    - Create a new project and get your WebSocket endpoint URL
    - It should look like: `wss://mainnet.infura.io/ws/v3/YOUR_PROJECT_ID`
@@ -54,57 +45,58 @@ A mind-blowing, psychedelic visualization of the Ethereum blockchain that transf
 
 ## Visual Elements
 
-- **Particles**: Background particle field that responds to blockchain activity
-- **Pending Transactions**: Distant white twinkling stars that merge into blocks when confirmed
-- **ETH Transactions**: Solid colorful tetrahedrons that fly through space with trailing effects
-- **ERC20 Transfers**: Green wireframe octahedrons, smaller and more delicate than ETH transfers
-- **Smart Contract Calls**: Colorful shooting stars with trails, color based on function selector
-- **Blocks**: Star constellations connected by glowing lines, growing spatially in branches
-- **Expanding Universe**: 3D space grows organically as new blocks are added
-- **Central Core**: A wireframe icosahedron representing the Ethereum world computer
-- **Address Nodes**: Spherical nodes that grow with activity and show address labels
-- **Transaction Flows**: Animated tubes connecting addresses (thick cyan for ETH, thin green for ERC20)
-- **Background**: Smoothly throbs with purple/blue intensity based on current gas prices
-- **Hover Tooltips**: Detailed information appears when hovering over any element
+- **Address Nodes**: 
+  - **EOA Addresses**: Spherical nodes in various colors that scale with activity
+  - **Smart Contracts**: Pyramid shapes with randomized colors for visual distinction
+- **Transaction Edges**: Curved 3D lines connecting sender and receiver nodes
+  - **ETH Transfers**: Cyan colored curves with dynamic arc heights
+  - **ERC20 Transfers**: Green colored curves with token-specific styling
+  - **Persistent Duration**: Edges remain visible for 12+ seconds (full block time)
+- **Distance-Adaptive Scaling**: All objects scale up when camera zooms out for better visibility
+- **Particles**: Dynamic background particle field
+- **Gas Price Effects**: Background color intensity responds to current gas prices
+- **Interactive Labels**: Hover tooltips show transaction details and address information
 
 ## Audio System
 
-- **Multiple Sound Styles**: Choose from 5 different audio styles:
+- **6 Sound Styles**: 
+  - **Retro Synth** (default): Classic synthesizer sounds
+  - **Piano**: Harmonic piano tones with natural decay
   - **Acid Techno**: 303-style bass with resonant filter sweeps
   - **Jazz**: Warm chords with reverb and complex harmonies
   - **Electronic**: Modulated synthesizers with delay effects
-  - **Piano**: Harmonic piano tones with decay envelopes
   - **Minimal**: Simple sine wave tones for subtle ambience
-- **Value-Based Audio**: Pitch, volume, and duration based on transaction amounts
-- **Pending Transaction Sounds**: Ethereal, high-pitched shimmers that fade in and out
-- **ETH Transaction Sounds**: Rich, dynamic tones that reflect transaction value
-- **ERC20 Transfer Sounds**: Distinctive higher-pitched sequences 
-- **Smart Contract Sounds**: Unique tones based on function selector with modulation
-- **Block Sounds**: Deep sub-bass with harmonic chords and plucked melodies
-- **Sequential Playback**: Transactions play sequentially over 12-second block periods
-- **Effects**: Resonant filter with LFO, delay, reverb, and compression
-- **Musical Scales**: Phrygian mode for that dark techno feel
-- **Audio Controls**: Mute/unmute and pause/play functionality with floating buttons
+- **Dynamic Audio**: Transaction sounds vary by value, gas price, and type
+- **ETH Transactions**: Rich tones reflecting transaction amounts
+- **ERC20 Transfers**: Distinctive token transfer audio signatures
+- **Smart Contract Calls**: Unique modulated tones for contract interactions
+- **Audio Controls**: Floating mute/unmute and pause/play buttons
+- **Customizable Effects**: Adjustable reverb, delay, filter, and volume controls
 
 ## Controls
+
+### Connection Settings
+- **RPC Endpoint**: Choose from Infura, Alchemy, Tenderly, or free public nodes
+- **API Key Support**: Built-in API key management for premium providers
+- **Connection Status**: Real-time connection monitoring
 
 ### Visual Settings
 - **Color Intensity**: Adjusts the vibrancy of colors
 - **Particle Density**: Number of background particles
 - **Rotation Speed**: Speed of object rotations
 - **Wave Amplitude**: Intensity of wave effects
-- **Show Address Graph**: Toggle address nodes and transaction flows
+- **Item Lifespan**: How long visual elements persist (2-30 seconds)
+- **Blockchain Focus**: Balance between effects and data visualization
+- **Show Address Graph**: Toggle the transaction graph visualization
 
 ### Audio Settings
+- **Sound Style**: Choose from 6 different audio engines
 - **Master Volume**: Overall sound level
 - **Transaction Pitch**: Base frequency for transaction sounds
 - **Block Bass Frequency**: Low frequency for block sounds
 - **Reverb Amount**: Spatial echo effect
-- **Filter Cutoff**: Frequency cutoff for the global filter
-- **Filter Resonance**: Q factor for acid-style filter sweeps
-- **Delay Time**: Echo delay timing
-- **Delay Feedback**: Amount of delay repetitions
-- **Sound Style**: Choose between Acid Techno, Jazz, Electronic, Piano, or Minimal
+- **Filter Cutoff & Resonance**: Real-time audio filtering
+- **Delay Time & Feedback**: Echo and repeat effects
 
 ## Browser Requirements
 
@@ -114,11 +106,19 @@ A mind-blowing, psychedelic visualization of the Ethereum blockchain that transf
 
 ## Performance Tips
 
-- Reduce particle count if experiencing lag
-- Close other tabs for better performance
-- Use a wired internet connection for stable blockchain streaming
+- Lower particle density if experiencing lag
+- Reduce item lifespan for better performance with high transaction volumes
+- Use free public nodes if you don't have an API key
+- Close other browser tabs for optimal performance
 
 
----
+## Known Issues & Limitations
 
-**Note**: This visualizer requires an active internet connection and a valid Ethereum RPC endpoint to function properly.
+- **Performance Degradation**: With high transaction volumes, performance may decrease over time due to accumulating visual elements
+- **Memory Usage**: Extended sessions may consume increasing amounts of memory as the graph grows
+- **Mobile Compatibility**: Touch controls and mobile browsers may have limited functionality
+- **Network Sensitivity**: Unstable internet connections can cause visualization interruptions
+- **RPC Rate Limits**: Some free RPC providers have rate limits that may affect real-time streaming
+- **Audio Context**: Some browsers require user interaction before audio can play (click anywhere to enable)
+- **Large Distance Scaling**: At extreme zoom levels, objects may become too large and overlap
+- **Connection Recovery**: Manual reconnection may be required if WebSocket connection drops

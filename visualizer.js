@@ -28,12 +28,17 @@ class PsychedelicVisualizer {
         this.maxBranchLength = 5;
         this.universeExtent = { min: -500, max: 500 };
         
+        // Block transaction elevation system
+        this.blockTransactionElevation = 0; // Tracks cumulative elevation for each new block
+        
         this.settings = {
             colorIntensity: 0.5,
             particleCount: 500, // Reduced from 1000 to 500 to reduce visual noise
             rotationSpeed: 0.5,
             waveAmplitude: 0.5,
-            showAddressGraph: true
+            showAddressGraph: true,
+            itemLifespan: 12.0, // Extended lifespan - connections persist for at least 1 block duration (12s)
+            blockchainFocus: 0.3 // 0 = all effects, 1 = data only
         };
         
         this.gasPriceEffect = {
@@ -43,10 +48,21 @@ class PsychedelicVisualizer {
             smoothingFactor: 0.02 // Slower transitions
         };
         
+        // PERFORMANCE MONITORING to prevent system overload
+        this.performanceMonitor = {
+            particleCount: 0,
+            connectionCount: 0,
+            maxParticles: 200, // Hard limit on active particles
+            maxConnections: 100, // Hard limit on active connections
+            lastCleanup: Date.now(),
+            isOverloaded: false
+        };
+        
         this.colors = {
             transaction: [0xff00ff, 0x00ffff, 0xffff00, 0xff00aa, 0x00ff00],
             block: [0xff0000, 0x0000ff, 0xff00ff, 0xffffff, 0x00ff00],
-            addressNode: [0x00ff88, 0xff8800, 0x8800ff, 0xff0088, 0x88ff00]
+            addressNode: [0x00ff88, 0xff8800, 0x8800ff, 0xff0088, 0x88ff00],
+            smartContract: [0xff6600, 0xff0099, 0x9900ff, 0x00ff99, 0xff9900, 0x6600ff, 0xff3366, 0x33ff66]
         };
         
         this.init();
@@ -119,7 +135,11 @@ class PsychedelicVisualizer {
         const colors = [];
         const sizes = [];
         
-        for (let i = 0; i < this.settings.particleCount; i++) {
+        // Reduce particle count based on blockchain focus (0 = full effects, 1 = data only)
+        const focusMultiplier = 1 - this.settings.blockchainFocus;
+        const adjustedParticleCount = Math.floor(this.settings.particleCount * focusMultiplier);
+        
+        for (let i = 0; i < adjustedParticleCount; i++) {
             positions.push(
                 (Math.random() - 0.5) * 2000,
                 (Math.random() - 0.5) * 2000,
@@ -396,13 +416,12 @@ class PsychedelicVisualizer {
                 <div>Gas Used: ${info.gasUsed}</div>
             `;
         } else if (info.type === 'address') {
-            const addressType = info.isSmartContract ? 'Smart Contract' : 'Address';
-            const typeIcon = info.isSmartContract ? '⚙️' : '👤';
+            const addressType = info.isSmartContract ? 'Smart Contract' : 'EOA Address';
+            const typeIcon = info.isSmartContract ? '🔺' : '🔵'; // Pyramid for contracts, circle for EOA
             content = `
                 <div><strong>${typeIcon} ${addressType}</strong></div>
                 <div>${info.address.slice(0, 6)}...${info.address.slice(-4)}</div>
                 <div>Activity: ${info.activity} transactions</div>
-                ${info.isSmartContract ? '<div style="color: #ff6600;">Contract Functions Available</div>' : ''}
             `;
         } else if (info.type === 'pending') {
             content = `
@@ -467,19 +486,19 @@ class PsychedelicVisualizer {
         let geometry, material, color;
         
         if (isSmartContract) {
-            // Smart contracts: Use octahedron with distinct colors
-            geometry = new THREE.OctahedronGeometry(6, 1); // Slightly larger and different shape
-            color = 0xff6600; // Orange color for smart contracts
+            // Smart contracts: Use pyramid (cone) with randomized colors
+            geometry = new THREE.ConeGeometry(6, 12, 4); // 4-sided pyramid
+            color = this.colors.smartContract[Math.floor(Math.random() * this.colors.smartContract.length)];
             material = new THREE.MeshPhongMaterial({
                 color: color,
                 emissive: color,
                 emissiveIntensity: 0.7, // Brighter emissive
                 transparent: true,
                 opacity: 0.9,
-                wireframe: true // Distinctive wireframe appearance
+                wireframe: false // Solid pyramid for better distinction
             });
         } else {
-            // Regular addresses: Keep existing sphere design
+            // EOA addresses: Spheres as requested
             geometry = new THREE.SphereGeometry(5, 16, 16);
             color = this.colors.addressNode[Math.floor(Math.random() * this.colors.addressNode.length)];
             material = new THREE.MeshPhongMaterial({
@@ -493,14 +512,37 @@ class PsychedelicVisualizer {
         
         const node = new THREE.Mesh(geometry, material);
         
-        const angle = Math.random() * Math.PI * 2;
-        const radius = 300 + Math.random() * 600; // INCREASED SPACING: 300-900 units from center
-        const height = (Math.random() - 0.5) * 600; // INCREASED SPACING: ±300 units vertically
-        node.position.set(
-            Math.cos(angle) * radius,
-            height,
-            Math.sin(angle) * radius
-        );
+        // ENHANCED SPARSE POSITIONING: Increased spacing with gap checking
+        let position;
+        let attempts = 0;
+        const maxAttempts = 20;
+        const minDistanceFromOthers = 150; // Minimum distance from other address nodes
+        
+        do {
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 500 + Math.random() * 1000; // MUCH SPARSER: 500-1500 units from center
+            const height = (Math.random() - 0.5) * 800; // SPARSER: ±400 units vertically
+            
+            position = new THREE.Vector3(
+                Math.cos(angle) * radius,
+                height,
+                Math.sin(angle) * radius
+            );
+            
+            // Check distance from existing address nodes
+            let tooClose = false;
+            for (const [addr, existingNode] of this.addressNodes) {
+                if (existingNode.position.distanceTo(position) < minDistanceFromOthers) {
+                    tooClose = true;
+                    break;
+                }
+            }
+            
+            if (!tooClose) break;
+            attempts++;
+        } while (attempts < maxAttempts);
+        
+        node.position.copy(position);
         
         node.userData = {
             address: address,
@@ -521,12 +563,17 @@ class PsychedelicVisualizer {
         this.addressGraphGroup.add(node.userData.label);
         this.addressNodes.set(address, node);
         
+        // Play subtle sound for new address
+        if (window.audioEngine) {
+            window.audioEngine.playNewAddress(address);
+        }
+        
         return node;
     }
     
     updateNodeAppearanceForSmartContract(node) {
-        // Update existing regular address node to smart contract appearance
-        const newGeometry = new THREE.OctahedronGeometry(6, 1);
+        // Update existing regular address node to smart contract appearance (pyramid)
+        const newGeometry = new THREE.ConeGeometry(6, 12, 4); // 4-sided pyramid
         const color = 0xff6600; // Orange color for smart contracts
         const newMaterial = new THREE.MeshPhongMaterial({
             color: color,
@@ -534,7 +581,7 @@ class PsychedelicVisualizer {
             emissiveIntensity: 0.7,
             transparent: true,
             opacity: 0.9,
-            wireframe: true
+            wireframe: false // Solid pyramid
         });
         
         // Dispose old geometry and material
@@ -638,25 +685,69 @@ class PsychedelicVisualizer {
     }
     
     createConnection(fromNode, toNode, value, isERC20 = false) {
+        // VALIDATION: Ensure we have valid nodes with positions
+        if (!fromNode || !toNode || !fromNode.position || !toNode.position) {
+            console.warn('Invalid nodes for connection:', { fromNode: !!fromNode, toNode: !!toNode });
+            return;
+        }
+        
         const points = [];
-        points.push(fromNode.position);
+        points.push(fromNode.position.clone());
         
+        // FIXED: Create proper 3D arc between actual node positions
+        const fromPos = fromNode.position.clone();
+        const toPos = toNode.position.clone();
+        
+        // Ensure positions are valid
+        if (!fromPos || !toPos || isNaN(fromPos.x) || isNaN(toPos.x)) {
+            console.warn('Invalid node positions for connection:', { fromPos, toPos });
+            return;
+        }
+        
+        // Calculate midpoint naturally between the two nodes
         const midPoint = new THREE.Vector3();
-        midPoint.addVectors(fromNode.position, toNode.position);
+        midPoint.addVectors(fromPos, toPos);
         midPoint.multiplyScalar(0.5);
-        midPoint.y += isERC20 ? 25 : 50;
+        
+        // Add RELATIVE arc height based on distance between nodes, not absolute offset
+        const distance = fromPos.distanceTo(toPos);
+        const arcHeight = Math.min(distance * 0.2, isERC20 ? 40 : 80); // Proportional to distance
+        
+        // Create natural arc direction (perpendicular to connection line)
+        const direction = new THREE.Vector3().subVectors(toPos, fromPos).normalize();
+        const up = new THREE.Vector3(0, 1, 0);
+        const perpendicular = new THREE.Vector3().crossVectors(direction, up).normalize();
+        
+        // Add arc in natural 3D direction, not just upward
+        if (perpendicular.length() > 0.1) {
+            midPoint.add(perpendicular.multiplyScalar(arcHeight * 0.5));
+        }
+        midPoint.y += arcHeight * 0.5; // Small upward component for visibility
+        
         points.push(midPoint);
+        points.push(toPos.clone());
         
-        points.push(toNode.position);
+        // DEBUG: Log connection creation
+        console.log(`Creating connection:`, {
+            from: `(${fromPos.x.toFixed(0)}, ${fromPos.y.toFixed(0)}, ${fromPos.z.toFixed(0)})`,
+            to: `(${toPos.x.toFixed(0)}, ${toPos.y.toFixed(0)}, ${toPos.z.toFixed(0)})`,
+            midpoint: `(${midPoint.x.toFixed(0)}, ${midPoint.y.toFixed(0)}, ${midPoint.z.toFixed(0)})`,
+            distance: distance.toFixed(0),
+            arcHeight: arcHeight.toFixed(0),
+            isERC20
+        });
         
+        // Create more prominent graph edge visualization
         const curve = new THREE.CatmullRomCurve3(points);
-        const tubeRadius = isERC20 ? 1 : 2;
-        const geometry = new THREE.TubeGeometry(curve, 20, tubeRadius, 8, false);
+        const tubeRadius = Math.max(1.0, Math.min(4, value * 3 + (isERC20 ? 1 : 2))); // Thicker, more visible
+        const geometry = new THREE.TubeGeometry(curve, 24, tubeRadius, 8, false); // Higher quality
         
+        // Enhanced edge materials with better visibility
+        const baseColor = isERC20 ? 0x00ff88 : 0x0088ff;
         const material = new THREE.MeshBasicMaterial({
-            color: isERC20 ? 0x00ff00 : 0x00ffff,
+            color: baseColor,
             transparent: true,
-            opacity: isERC20 ? 0.3 : 0.6,
+            opacity: Math.max(0.6, Math.min(0.9, value * 0.6 + 0.6)), // Higher base opacity
             blending: THREE.AdditiveBlending
         });
         
@@ -666,41 +757,229 @@ class PsychedelicVisualizer {
             to: toNode,
             value: value,
             isERC20: isERC20,
-            lifespan: 2.5, // Reduced from 5 to 2.5 seconds to reduce visual noise
-            age: 0
+            lifespan: this.settings.itemLifespan * 1.2, // Extra duration for graph connections
+            age: 0,
+            curve: curve, // Store curve for flow effects
+            baseColor: baseColor
         };
         
         this.addressGraphGroup.add(connection);
         this.connections.push(connection);
         
-        const particleCount = Math.min(10, Math.max(3, Math.floor(value * 5)));
-        for (let i = 0; i < particleCount; i++) {
-            this.createFlowParticle(curve, i / particleCount);
+        // Update performance monitor
+        this.performanceMonitor.connectionCount++;
+        
+        // ENHANCED DIRECTIONAL FLOW - Only if blockchain focus allows and not overloaded
+        if (this.settings.blockchainFocus < 0.8 && 
+            this.performanceMonitor.particleCount < this.performanceMonitor.maxParticles) {
+            this.createDirectionalFlow(connection, curve, isERC20, value);
+        }
+        
+        // Add connection creation pulse effect
+        this.animateConnectionCreation(connection);
+    }
+    
+    createDirectionalFlow(connection, curve, isERC20, value) {
+        // PERFORMANCE OPTIMIZED: Reduced flow for better performance
+        const baseFlowCount = Math.min(3, Math.max(1, Math.floor(value * 2 + 1))); // Reduced from 5 to 3 max
+        const focusMultiplier = Math.max(0.2, 1 - this.settings.blockchainFocus); // More aggressive reduction
+        const flowCount = Math.floor(baseFlowCount * focusMultiplier);
+        
+        if (flowCount <= 0) return; // Skip if blockchain focus is too high
+        
+        const flowColor = isERC20 ? 0x00ffaa : 0x0099ff;
+        
+        // OPTIMIZED: Create first particle immediately, delay others
+        for (let i = 0; i < flowCount; i++) {
+            const delay = i * 150; // Reduced from 200ms to 150ms
+            if (delay === 0) {
+                this.createDirectionalParticle(curve, flowColor, isERC20, value);
+            } else {
+                setTimeout(() => {
+                    this.createDirectionalParticle(curve, flowColor, isERC20, value);
+                }, delay);
+            }
         }
     }
     
-    createFlowParticle(curve, offset) {
-        const geometry = new THREE.SphereGeometry(1, 8, 8);
-        const material = new THREE.MeshBasicMaterial({
-            color: 0xffff00,
-            emissive: 0xffff00,
-            emissiveIntensity: 1,
+    createDirectionalParticle(curve, color, isERC20, value) {
+        // Create arrow-like geometry for clear direction indication
+        const geometry = new THREE.ConeGeometry(1.5, 4, 6);
+        const material = new THREE.MeshPhongMaterial({
+            color: color,
+            emissive: color,
+            emissiveIntensity: 0.8,
             transparent: true,
-            opacity: 1
+            opacity: 0.9
         });
         
         const particle = new THREE.Mesh(geometry, material);
+        
+        // Add glowing trail effect
+        const trailGeometry = new THREE.SphereGeometry(0.8, 6, 6);
+        const trailMaterial = new THREE.MeshBasicMaterial({
+            color: color,
+            transparent: true,
+            opacity: 0.4,
+            blending: THREE.AdditiveBlending
+        });
+        const trail = new THREE.Mesh(trailGeometry, trailMaterial);
+        
         particle.userData = {
             curve: curve,
-            progress: offset,
-            speed: 0.002 + Math.random() * 0.002
+            progress: 0,
+            speed: 0.015 + (value * 0.005), // Faster for higher value transactions
+            trail: trail,
+            lifespan: 2 + (value * 0.5), // Longer life for higher value
+            age: 0,
+            isERC20: isERC20
         };
         
         this.addressGraphGroup.add(particle);
+        this.addressGraphGroup.add(trail);
         
-        setTimeout(() => {
-            this.addressGraphGroup.remove(particle);
-        }, 5000);
+        // Update performance monitor
+        this.performanceMonitor.particleCount++;
+        
+        // Animate the particle along the curve
+        this.animateDirectionalParticle(particle);
+    }
+    
+    animateDirectionalParticle(particle) {
+        const animate = () => {
+            if (!particle.parent) return; // Particle was removed
+            
+            particle.userData.age += 0.05;
+            particle.userData.progress += particle.userData.speed;
+            
+            if (particle.userData.progress >= 1.0) {
+                // Particle reached destination - create arrival effect
+                this.createArrivalEffect(particle.position, particle.userData.isERC20);
+                
+                // Remove particle and trail
+                this.addressGraphGroup.remove(particle);
+                this.addressGraphGroup.remove(particle.userData.trail);
+                
+                // Update performance monitor
+                this.performanceMonitor.particleCount--;
+                return;
+            }
+            
+            // Update position along curve
+            const point = particle.userData.curve.getPoint(particle.userData.progress);
+            particle.position.copy(point);
+            
+            // Update trail position (slightly behind)
+            const trailProgress = Math.max(0, particle.userData.progress - 0.05);
+            const trailPoint = particle.userData.curve.getPoint(trailProgress);
+            particle.userData.trail.position.copy(trailPoint);
+            
+            // Orient particle in direction of movement
+            if (particle.userData.progress < 0.95) {
+                const nextPoint = particle.userData.curve.getPoint(particle.userData.progress + 0.01);
+                particle.lookAt(nextPoint);
+            }
+            
+            // Fade based on age
+            const alpha = Math.max(0, 1 - (particle.userData.age / particle.userData.lifespan));
+            particle.material.opacity = alpha * 0.9;
+            particle.userData.trail.material.opacity = alpha * 0.4;
+            
+            if (alpha > 0) {
+                requestAnimationFrame(animate);
+            } else {
+                // Remove expired particle
+                this.addressGraphGroup.remove(particle);
+                this.addressGraphGroup.remove(particle.userData.trail);
+                
+                // Update performance monitor
+                this.performanceMonitor.particleCount--;
+            }
+        };
+        
+        animate();
+    }
+    
+    createArrivalEffect(position, isERC20) {
+        // Create burst effect when particle reaches destination
+        const particleCount = 8;
+        const color = isERC20 ? 0x00ffaa : 0x0099ff;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const geometry = new THREE.SphereGeometry(0.5, 4, 4);
+            const material = new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            const burstParticle = new THREE.Mesh(geometry, material);
+            burstParticle.position.copy(position);
+            
+            const angle = (i / particleCount) * Math.PI * 2;
+            const velocity = new THREE.Vector3(
+                Math.cos(angle) * 10,
+                Math.random() * 5,
+                Math.sin(angle) * 10
+            );
+            
+            burstParticle.userData = { velocity, age: 0 };
+            this.addressGraphGroup.add(burstParticle);
+            
+            // Animate burst particle
+            const animateBurst = () => {
+                burstParticle.userData.age += 0.1;
+                burstParticle.position.add(burstParticle.userData.velocity.clone().multiplyScalar(0.1));
+                burstParticle.userData.velocity.multiplyScalar(0.95); // Friction
+                
+                const alpha = Math.max(0, 1 - burstParticle.userData.age);
+                burstParticle.material.opacity = alpha * 0.8;
+                burstParticle.scale.setScalar(1 + burstParticle.userData.age * 0.5);
+                
+                if (alpha > 0) {
+                    requestAnimationFrame(animateBurst);
+                } else {
+                    this.addressGraphGroup.remove(burstParticle);
+                }
+            };
+            
+            animateBurst();
+        }
+    }
+    
+    animateConnectionCreation(connection) {
+        // Animate connection appearing with a pulse effect
+        const originalScale = connection.scale.clone();
+        connection.scale.set(0.1, 0.1, 0.1);
+        
+        const animateScale = () => {
+            const now = Date.now();
+            const duration = 500; // 0.5 seconds
+            const startTime = now;
+            
+            const scaleUp = () => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Ease-out cubic curve
+                const easeProgress = 1 - Math.pow(1 - progress, 3);
+                connection.scale.lerpVectors(new THREE.Vector3(0.1, 0.1, 0.1), originalScale, easeProgress);
+                
+                // Add pulse effect
+                const pulse = 1 + Math.sin(progress * Math.PI * 6) * 0.1 * (1 - progress);
+                connection.scale.multiplyScalar(pulse);
+                
+                if (progress < 1) {
+                    requestAnimationFrame(scaleUp);
+                } else {
+                    connection.scale.copy(originalScale);
+                }
+            };
+            
+            scaleUp();
+        };
+        
+        animateScale();
     }
     
     addTransaction(tx) {
@@ -713,26 +992,37 @@ class PsychedelicVisualizer {
             Math.max(8, Math.min(50, value * 10));
         
         if (tx.from && tx.to && this.settings.showAddressGraph) {
-            // Only show connections for transactions above a minimum value threshold
-            const minValueThreshold = isERC20 ? 1.0 : 0.1; // Higher thresholds to reduce noise
-            const showConnection = value > minValueThreshold && Math.random() > 0.7; // 30% chance to show (reduced noise)
+            // IMPROVED GRAPH VISUALIZATION: Show most transactions for proper graph representation
+            const minValueThreshold = isERC20 ? 0.01 : 0.001; // Lower thresholds for better graph visibility
+            const showConnection = value > minValueThreshold; // Show all qualifying transactions
             
             // Detect if the 'to' address is a smart contract
             const isToAddressSmartContract = tx.to && tx.input && tx.input.length > 2;
             
+            // DEBUG: Log transaction processing
+            if (showConnection) {
+                console.log(`Processing ${isERC20 ? 'ERC20' : 'ETH'} transaction:`, {
+                    from: tx.from?.slice(0, 8) + '...',
+                    to: tx.to?.slice(0, 8) + '...',
+                    value: value.toFixed(4),
+                    isSmartContract: isToAddressSmartContract
+                });
+            }
+            
             const fromNode = this.getOrCreateAddressNode(tx.from, false); // 'from' is typically an EOA
             const toNode = this.getOrCreateAddressNode(tx.to, isToAddressSmartContract);
             
-            if (fromNode && toNode) {
-                // Add distance-based filtering to reduce visual noise
-                const distance = fromNode.position.distanceTo(toNode.position);
-                const maxConnectionDistance = 800; // Limit connection distance to reduce long lines
-                const showConnectionWithDistance = showConnection && distance < maxConnectionDistance;
-                
-                // Only create visual connection if it meets criteria
-                if (showConnectionWithDistance) {
-                    this.createConnection(fromNode, toNode, value, isERC20);
-                }
+            // DEBUG: Log node creation results
+            if (showConnection) {
+                console.log(`Nodes created:`, {
+                    fromNode: fromNode ? `${fromNode.userData.isSmartContract ? 'Contract' : 'EOA'} at (${fromNode.position.x.toFixed(0)}, ${fromNode.position.y.toFixed(0)}, ${fromNode.position.z.toFixed(0)})` : 'NULL',
+                    toNode: toNode ? `${toNode.userData.isSmartContract ? 'Contract' : 'EOA'} at (${toNode.position.x.toFixed(0)}, ${toNode.position.y.toFixed(0)}, ${toNode.position.z.toFixed(0)})` : 'NULL'
+                });
+            }
+            
+            if (fromNode && toNode && showConnection) {
+                // Create connection between sender and receiver nodes
+                this.createConnection(fromNode, toNode, value, isERC20);
                 
                 fromNode.userData.lastActive = Date.now();
                 toNode.userData.lastActive = Date.now();
@@ -750,139 +1040,204 @@ class PsychedelicVisualizer {
             }
         }
         
-        const geometry = isERC20 ? 
-            new THREE.OctahedronGeometry(size, 0) : 
-            new THREE.TetrahedronGeometry(size, 0);
+        // FIXED: PURE GRAPH VISUALIZATION - No separate transaction objects!
+        // Transactions are now ONLY represented as graph edges between address nodes
+        // The graph structure is: Spheres (EOA) <--edges--> Pyramids (Smart Contracts)
         
-        const color = isERC20 ? 
-            0x00ff00 : // Green for ERC20
-            this.colors.transaction[Math.floor(Math.random() * this.colors.transaction.length)];
-        
-        const material = new THREE.MeshPhongMaterial({
-            color: color,
-            emissive: color,
-            emissiveIntensity: isERC20 ? 0.3 : 0.5,
-            transparent: true,
-            opacity: isERC20 ? 0.6 : 0.8,
-            wireframe: isERC20
-        });
-        
-        const mesh = new THREE.Mesh(geometry, material);
-        
-        const angle = Math.random() * Math.PI * 2;
-        const radius = 350 + Math.random() * 450; // INCREASED SPACING: 350-800 units from center
-        mesh.position.set(
-            Math.cos(angle) * radius,
-            (Math.random() - 0.5) * 300, // INCREASED SPACING: ±150 units vertically
-            Math.sin(angle) * radius
-        );
-        
-        mesh.userData = {
-            velocity: new THREE.Vector3(
-                (Math.random() - 0.5) * 2,
-                (Math.random() - 0.5) * 2,
-                (Math.random() - 0.5) * 2
-            ),
-            rotationSpeed: (Math.random() - 0.5) * 0.1,
-            lifespan: 10,
-            age: 0,
-            tx: tx,
-            info: {
-                type: 'transaction',
-                hash: tx.hash,
-                from: tx.from,
-                to: tx.to,
-                value: value.toFixed(4),
-                txType: isERC20 ? 'ERC20' : 'ETH'
+        // Only play transaction sound if we created a connection
+        if (tx.from && tx.to && this.settings.showAddressGraph) {
+            const minValueThreshold = isERC20 ? 0.01 : 0.001;
+            if (value > minValueThreshold) {
+                // Play subtle new transaction sound for streaming transactions
+                if (window.audioEngine) {
+                    window.audioEngine.playNewTransaction();
+                }
             }
-        };
-        
-        this.scene.add(mesh);
-        this.transactions.push(mesh);
-        
-        this.createTransactionTrail(mesh);
-        
-        if (this.transactions.length > 100) {
-            const oldTx = this.transactions.shift();
-            this.scene.remove(oldTx);
         }
+        
+        // NOTE: No transaction objects created - pure graph visualization only!
     }
     
     addSmartContractCall(tx) {
+        // FIXED: PURE GRAPH VISUALIZATION - Smart contract calls are also graph edges!
+        // Create graph connection between caller (EOA) and contract (pyramid)
+        
+        if (!tx.from || !tx.to || !this.settings.showAddressGraph) return;
+        
         const value = parseInt(tx.value || '0', 16) / 1e18;
+        const minValueThreshold = 0.0001; // Show most smart contract calls
         
-        // Create shooting star geometry
-        const geometry = new THREE.SphereGeometry(3, 8, 8);
+        if (value < minValueThreshold && (!tx.input || tx.input.length <= 2)) {
+            return; // Skip very low value calls without data
+        }
         
-        // Determine color based on first 4 bytes of calldata (function selector)
-        const functionSelector = tx.calldata ? tx.calldata.slice(0, 10) : '0x00000000';
-        const colorSeed = parseInt(functionSelector.slice(2, 6), 16);
-        const hue = (colorSeed % 360) / 360;
-        const color = new THREE.Color().setHSL(hue, 1, 0.6);
+        // DEBUG: Log smart contract call processing
+        console.log(`Processing smart contract call:`, {
+            from: tx.from?.slice(0, 8) + '...',
+            to: tx.to?.slice(0, 8) + '...',
+            value: value.toFixed(4),
+            hasInput: !!(tx.input && tx.input.length > 2)
+        });
         
+        // Create nodes: caller (EOA) and target contract (pyramid)
+        const fromNode = this.getOrCreateAddressNode(tx.from, false); // Caller is EOA
+        const toNode = this.getOrCreateAddressNode(tx.to, true); // Target is smart contract
+        
+        if (fromNode && toNode) {
+            // Create special connection for smart contract calls
+            this.createSmartContractConnection(fromNode, toNode, value, tx);
+            
+            // Update node activity
+            fromNode.userData.lastActive = Date.now();
+            toNode.userData.lastActive = Date.now();
+            fromNode.userData.activity += 2; // Smart contract calls are more significant
+            toNode.userData.activity += 2;
+            
+            // Visual feedback for smart contract interaction
+            const scaleBoost = 1.3 + Math.min(0.4, value * 0.2);
+            fromNode.scale.multiplyScalar(scaleBoost);
+            toNode.scale.multiplyScalar(scaleBoost);
+            
+            setTimeout(() => {
+                fromNode.scale.divideScalar(scaleBoost);
+                toNode.scale.divideScalar(scaleBoost);
+            }, 1500); // Longer boost for contract calls
+            
+            // Play smart contract interaction sound
+            if (window.audioEngine) {
+                window.audioEngine.playSmartContract(tx);
+            }
+        }
+    }
+    
+    createSmartContractConnection(fromNode, toNode, value, tx) {
+        // Enhanced connection for smart contract calls with distinctive appearance
+        const points = [];
+        const fromPos = fromNode.position.clone();
+        const toPos = toNode.position.clone();
+        points.push(fromPos);
+        
+        // Calculate special arc for smart contract calls
+        const midPoint = new THREE.Vector3();
+        midPoint.addVectors(fromPos, toPos);
+        midPoint.multiplyScalar(0.5);
+        
+        const distance = fromPos.distanceTo(toPos);
+        const arcHeight = Math.min(distance * 0.4, 100); // Higher arc for contract calls
+        
+        // Create distinctive arc for smart contract calls
+        const direction = new THREE.Vector3().subVectors(toPos, fromPos).normalize();
+        const up = new THREE.Vector3(0, 1, 0);
+        const perpendicular = new THREE.Vector3().crossVectors(direction, up).normalize();
+        
+        if (perpendicular.length() > 0.1) {
+            midPoint.add(perpendicular.multiplyScalar(arcHeight * 0.7));
+        }
+        midPoint.y += arcHeight * 0.3;
+        
+        points.push(midPoint);
+        points.push(toPos);
+        
+        const curve = new THREE.CatmullRomCurve3(points);
+        const tubeRadius = Math.max(1.5, Math.min(5, value * 4 + 2)); // Thicker for contract calls
+        const geometry = new THREE.TubeGeometry(curve, 32, tubeRadius, 12, false);
+        
+        // Distinctive color for smart contract calls (purple/magenta)
+        const material = new THREE.MeshBasicMaterial({
+            color: 0xff00cc, // Bright magenta for smart contracts
+            transparent: true,
+            opacity: Math.max(0.7, Math.min(0.95, value * 0.8 + 0.7)),
+            blending: THREE.AdditiveBlending
+        });
+        
+        const connection = new THREE.Mesh(geometry, material);
+        connection.userData = {
+            from: fromNode,
+            to: toNode,
+            value: value,
+            isERC20: false,
+            isSmartContract: true,
+            lifespan: this.settings.itemLifespan * 1.3, // Longer lifespan for contract calls
+            age: 0,
+            curve: curve,
+            tx: tx
+        };
+        
+        this.addressGraphGroup.add(connection);
+        this.connections.push(connection);
+        
+        // Update performance monitor
+        this.performanceMonitor.connectionCount++;
+        
+        // Enhanced flow for smart contract calls
+        if (this.settings.blockchainFocus < 0.9 && 
+            this.performanceMonitor.particleCount < this.performanceMonitor.maxParticles) {
+            this.createSmartContractFlow(connection, curve, value, tx);
+        }
+        
+        // Add creation animation
+        this.animateConnectionCreation(connection);
+    }
+    
+    createSmartContractFlow(connection, curve, value, tx) {
+        // Special flow for smart contract calls - more dramatic
+        const flowCount = Math.min(6, Math.max(2, Math.floor(value * 3 + 3)));
+        const flowColor = 0xff00cc; // Magenta for smart contracts
+        
+        for (let i = 0; i < flowCount; i++) {
+            const delay = i * 100;
+            if (delay === 0) {
+                this.createSmartContractParticle(curve, flowColor, value, tx);
+            } else {
+                setTimeout(() => {
+                    this.createSmartContractParticle(curve, flowColor, value, tx);
+                }, delay);
+            }
+        }
+    }
+    
+    createSmartContractParticle(curve, color, value, tx) {
+        // Diamond-shaped particles for smart contract calls
+        const geometry = new THREE.OctahedronGeometry(2, 0);
         const material = new THREE.MeshPhongMaterial({
             color: color,
             emissive: color,
-            emissiveIntensity: 0.8,
+            emissiveIntensity: 1.2,
             transparent: true,
             opacity: 0.9
         });
         
-        const mesh = new THREE.Mesh(geometry, material);
+        const particle = new THREE.Mesh(geometry, material);
         
-        // Start position far away - INCREASED SPACING for more sparse layout
-        const startAngle = Math.random() * Math.PI * 2;
-        const startRadius = 1200 + Math.random() * 400; // 1200-1600 units from center
-        const startHeight = (Math.random() - 0.5) * 600; // ±300 units vertically
+        // Glowing trail for smart contract particles
+        const trailGeometry = new THREE.SphereGeometry(1, 6, 6);
+        const trailMaterial = new THREE.MeshBasicMaterial({
+            color: color,
+            transparent: true,
+            opacity: 0.5,
+            blending: THREE.AdditiveBlending
+        });
+        const trail = new THREE.Mesh(trailGeometry, trailMaterial);
         
-        mesh.position.set(
-            Math.cos(startAngle) * startRadius,
-            startHeight,
-            Math.sin(startAngle) * startRadius
-        );
-        
-        // Target position near center - INCREASED SPACING 
-        const targetRadius = 80 + Math.random() * 160; // 80-240 units from center
-        const targetAngle = Math.random() * Math.PI * 2;
-        const targetPosition = new THREE.Vector3(
-            Math.cos(targetAngle) * targetRadius,
-            (Math.random() - 0.5) * 150, // ±75 units vertically
-            Math.sin(targetAngle) * targetRadius
-        );
-        
-        mesh.userData = {
-            startPosition: mesh.position.clone(),
-            targetPosition: targetPosition,
-            speed: 0.02 + Math.random() * 0.03,
+        particle.userData = {
+            curve: curve,
             progress: 0,
-            lifespan: 5,
+            speed: 0.018 + (value * 0.008), // Slightly faster for contracts
+            trail: trail,
+            lifespan: 3 + (value * 0.8),
             age: 0,
-            tx: tx,
-            functionSelector: functionSelector,
-            trail: [],
-            info: {
-                type: 'smartcontract',
-                hash: tx.hash,
-                from: tx.from,
-                to: tx.to,
-                value: value.toFixed(4),
-                functionSelector: functionSelector
-            }
+            isSmartContract: true,
+            tx: tx
         };
         
-        // Create trail
-        this.createShootingStarTrail(mesh);
+        this.addressGraphGroup.add(particle);
+        this.addressGraphGroup.add(trail);
         
-        this.scene.add(mesh);
-        this.smartContracts.push(mesh);
+        // Update performance monitor
+        this.performanceMonitor.particleCount++;
         
-        if (this.smartContracts.length > 50) {
-            const oldSc = this.smartContracts.shift();
-            this.scene.remove(oldSc);
-            if (oldSc.userData.trailMesh) {
-                this.scene.remove(oldSc.userData.trailMesh);
-            }
-        }
+        // Animate the particle along the curve
+        this.animateDirectionalParticle(particle);
     }
     
     createShootingStarTrail(mesh) {
@@ -938,7 +1293,7 @@ class PsychedelicVisualizer {
         if (this.pendingTransactions.has(tx.hash)) return;
         
         const geometry = new THREE.SphereGeometry(2, 8, 8);
-        const material = new THREE.MeshBasicMaterial({
+        const material = new THREE.MeshPhongMaterial({
             color: 0xffffff,
             emissive: 0xffffff,
             emissiveIntensity: 0.5,
@@ -1051,8 +1406,10 @@ class PsychedelicVisualizer {
         const innerCore = new THREE.Mesh(innerCoreGeometry, innerCoreMaterial);
         group.add(innerCore);
         
-        // Create structured constellation points around the core
-        const starCount = Math.min(16, 4 + Math.floor(block.transactions.length / 2));
+        // Create structured constellation points around the core (reduced by blockchain focus)
+        const focusMultiplier = 1 - this.settings.blockchainFocus;
+        const baseStarCount = Math.min(16, 4 + Math.floor(block.transactions.length / 2));
+        const starCount = Math.floor(baseStarCount * focusMultiplier);
         const stars = [];
         
         for (let i = 0; i < starCount; i++) {
@@ -1149,9 +1506,12 @@ class PsychedelicVisualizer {
     createBlockExplosion(position, color, block) {
         const particles = [];
         
-        // Create particles for each transaction in the block
+        // ENHANCED BLOCK VISUALIZATION: Create both particles AND larger node/edge connections
         if (block.transactions && block.transactions.length > 0) {
             const maxParticles = Math.min(block.transactions.length, 20); // Limit for performance
+            
+            // First, create larger address nodes and connections for block transactions
+            this.createBlockTransactionConnections(block);
             
             for (let i = 0; i < maxParticles; i++) {
                 const tx = block.transactions[i];
@@ -1280,6 +1640,311 @@ class PsychedelicVisualizer {
         animateExplosion();
     }
     
+    createBlockTransactionConnections(block) {
+        // Create prominent node/edge connections for transactions within this block
+        // OPTIMIZED BATCH PROCESSING: Prevent main thread blocking
+        if (!block.transactions || !this.settings.showAddressGraph) return;
+        
+        // ELEVATION SYSTEM: Each new block's transactions are 10% higher
+        this.blockTransactionElevation += 50; // Increase elevation by 50 units for each new block
+        
+        // Filter qualifying transactions with performance optimization
+        const qualifyingTxs = block.transactions.filter(tx => {
+            if (!tx.from || !tx.to) return false;
+            
+            const isERC20 = tx.type === 'erc20' || (tx.input && tx.input.includes('a9059cbb'));
+            const value = isERC20 ? 
+                (parseFloat(tx.value || '0') / 1e18) : 
+                (parseInt(tx.value || '0', 16) / 1e18);
+            
+            return value >= 0.0001 || isERC20;
+        });
+        
+        if (qualifyingTxs.length === 0) return;
+        
+        // PERFORMANCE OPTIMIZED: Limit processing to prevent freezing
+        const maxTransactions = Math.min(qualifyingTxs.length, 50); // Cap at 50 transactions per block
+        const limitedTxs = qualifyingTxs.slice(0, maxTransactions);
+        
+        // Use requestAnimationFrame for non-blocking processing
+        this.scheduleBlockTransactionProcessing(limitedTxs, block.number, this.blockTransactionElevation);
+    }
+    
+    scheduleBlockTransactionProcessing(transactions, blockNumber, elevation) {
+        // NON-BLOCKING PROCESSING using requestAnimationFrame
+        let currentIndex = 0;
+        const batchSize = 3; // Small batches to prevent blocking
+        const totalDuration = 11000; // 11 seconds total
+        const intervalBetweenBatches = totalDuration / Math.ceil(transactions.length / batchSize);
+        
+        const processNextBatch = () => {
+            if (currentIndex >= transactions.length) return;
+            
+            // Process small batch
+            const batch = transactions.slice(currentIndex, currentIndex + batchSize);
+            
+            // Process batch with minimal blocking
+            try {
+                this.processBatchTransactions(batch, blockNumber, elevation);
+            } catch (error) {
+                console.warn('Error processing batch:', error);
+            }
+            
+            currentIndex += batchSize;
+            
+            // Schedule next batch using setTimeout to maintain timing
+            if (currentIndex < transactions.length) {
+                setTimeout(() => {
+                    // Use requestAnimationFrame to ensure non-blocking
+                    requestAnimationFrame(() => {
+                        processNextBatch();
+                    });
+                }, intervalBetweenBatches);
+            }
+        };
+        
+        // Start processing with initial delay
+        setTimeout(() => {
+            requestAnimationFrame(() => {
+                processNextBatch();
+            });
+        }, 100); // Small initial delay to let block visualization complete
+    }
+    
+    processBatchTransactions(transactions, blockNumber, elevation) {
+        // OPTIMIZED: Process batch immediately without additional setTimeout delays
+        transactions.forEach((tx, batchIndex) => {
+            try {
+                const isERC20 = tx.type === 'erc20' || (tx.input && tx.input.includes('a9059cbb'));
+                const value = isERC20 ? 
+                    (parseFloat(tx.value || '0') / 1e18) : 
+                    (parseInt(tx.value || '0', 16) / 1e18);
+                
+                // Detect smart contracts
+                const isToAddressSmartContract = tx.to && tx.input && tx.input.length > 2;
+                
+                const fromNode = this.getOrCreateAddressNode(tx.from, false);
+                const toNode = this.getOrCreateAddressNode(tx.to, isToAddressSmartContract);
+                
+                if (fromNode && toNode) {
+                    // Create ENHANCED connection for block transactions
+                    this.createBlockTransactionConnection(fromNode, toNode, value, isERC20, blockNumber, elevation);
+                    
+                    // Boost node activity for block transactions
+                    fromNode.userData.activity += 2;
+                    toNode.userData.activity += 2;
+                    fromNode.userData.lastActive = Date.now();
+                    toNode.userData.lastActive = Date.now();
+                    
+                    // OPTIMIZED: Simpler scale boost without heavy setTimeout
+                    const scaleBoost = 1.2 + Math.min(0.3, value * 0.1); // Reduced intensity
+                    fromNode.scale.multiplyScalar(scaleBoost);
+                    toNode.scale.multiplyScalar(scaleBoost);
+                    
+                    // Store scale info for gradual reduction in animation loop
+                    fromNode.userData.scaleBoost = { factor: scaleBoost, startTime: Date.now(), duration: 3000 };
+                    toNode.userData.scaleBoost = { factor: scaleBoost, startTime: Date.now(), duration: 3000 };
+                    
+                    // THROTTLED AUDIO: Only play audio for every other transaction to reduce load
+                    if (batchIndex % 2 === 0) {
+                        // Play subtle new transaction sound
+                        if (window.audioEngine) {
+                            window.audioEngine.playNewTransaction();
+                        }
+                        
+                        // Play audio for this transaction
+                        if (window.audioEngine) {
+                            window.audioEngine.playTransaction(tx);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn('Error processing transaction:', error);
+            }
+        });
+    }
+    
+    createBlockTransactionConnection(fromNode, toNode, value, isERC20, blockNumber, elevation = 0) {
+        // Enhanced connection for block transactions - larger and more prominent
+        const points = [];
+        points.push(fromNode.position.clone());
+        
+        // FIXED: Create proper 3D arc for block transactions
+        const fromPos = fromNode.position.clone();
+        const toPos = toNode.position.clone();
+        
+        // Calculate midpoint naturally between the two nodes
+        const midPoint = new THREE.Vector3();
+        midPoint.addVectors(fromPos, toPos);
+        midPoint.multiplyScalar(0.5);
+        
+        // Block transactions get higher arcs but still relative to distance
+        const distance = fromPos.distanceTo(toPos);
+        const baseArcHeight = Math.min(distance * 0.3, isERC20 ? 60 : 120); // Higher than regular connections
+        const arcHeight = baseArcHeight + elevation * 0.2; // Add elevation factor
+        
+        // Create natural arc direction for block transactions
+        const direction = new THREE.Vector3().subVectors(toPos, fromPos).normalize();
+        const up = new THREE.Vector3(0, 1, 0);
+        const perpendicular = new THREE.Vector3().crossVectors(direction, up).normalize();
+        
+        // Add arc in natural 3D direction with block transaction enhancement
+        if (perpendicular.length() > 0.1) {
+            midPoint.add(perpendicular.multiplyScalar(arcHeight * 0.6));
+        }
+        midPoint.y += arcHeight * 0.4; // Slight upward bias for block transactions
+        
+        points.push(midPoint);
+        points.push(toPos.clone());
+        
+        const curve = new THREE.CatmullRomCurve3(points);
+        
+        // LARGER tubes for block transactions
+        const tubeRadius = Math.max(2.0, Math.min(6, value * 4 + (isERC20 ? 1.5 : 2.5))); // Even thicker for block txs
+        const geometry = new THREE.TubeGeometry(curve, 32, tubeRadius, 12, false); // Higher quality
+        
+        // Special colors for block transactions with distinctive appearance
+        const baseColor = isERC20 ? 0xffaa00 : 0xaa00ff; // Orange for ERC20, purple for ETH in blocks
+        const material = new THREE.MeshBasicMaterial({
+            color: baseColor,
+            transparent: true,
+            opacity: Math.max(0.7, Math.min(0.95, value * 0.8 + 0.7)), // Higher base opacity
+            blending: THREE.AdditiveBlending
+        });
+        
+        const connection = new THREE.Mesh(geometry, material);
+        connection.userData = {
+            from: fromNode,
+            to: toNode,
+            value: value,
+            isERC20: isERC20,
+            isBlockTransaction: true,
+            blockNumber: blockNumber,
+            lifespan: this.settings.itemLifespan * 1.5, // 1.5x longer lifespan for block transactions
+            age: 0,
+            curve: curve,
+            baseColor: baseColor
+        };
+        
+        this.addressGraphGroup.add(connection);
+        this.connections.push(connection);
+        
+        // ENHANCED BLOCK TRANSACTION FLOW - More prominent than regular transactions
+        if (this.settings.blockchainFocus < 0.9) { // Allow slightly more flow for block transactions
+            this.createEnhancedBlockFlow(connection, curve, isERC20, value, blockNumber);
+        }
+        
+        // Add connection creation pulse effect with block-specific styling
+        this.animateBlockConnectionCreation(connection);
+    }
+    
+    createEnhancedBlockFlow(connection, curve, isERC20, value, blockNumber) {
+        // PERFORMANCE OPTIMIZED: Reduced particle count to prevent blocking
+        const baseFlowCount = Math.min(4, Math.max(2, Math.floor(value * 2 + 2))); // Reduced particle count
+        const focusMultiplier = Math.max(0.3, 1 - this.settings.blockchainFocus); // More aggressive reduction
+        const flowCount = Math.floor(baseFlowCount * focusMultiplier);
+        
+        if (flowCount <= 0) return; // Skip if blockchain focus is too high
+        
+        const flowColor = isERC20 ? 0xffcc33 : 0xcc33ff; // Brighter colors for block transactions
+        
+        // Create particles immediately without setTimeout to reduce event loop pressure
+        for (let i = 0; i < flowCount; i++) {
+            // Add small delay using requestAnimationFrame instead of setTimeout
+            const delay = i * 100; // Reduced from 150ms to 100ms
+            if (delay === 0) {
+                this.createEnhancedBlockParticle(curve, flowColor, isERC20, value, blockNumber);
+            } else {
+                setTimeout(() => {
+                    this.createEnhancedBlockParticle(curve, flowColor, isERC20, value, blockNumber);
+                }, delay);
+            }
+        }
+    }
+    
+    createEnhancedBlockParticle(curve, color, isERC20, value, blockNumber) {
+        // Larger, more prominent particles for block transactions
+        const geometry = new THREE.ConeGeometry(2.5, 6, 8); // Larger arrow geometry
+        const material = new THREE.MeshPhongMaterial({
+            color: color,
+            emissive: color,
+            emissiveIntensity: 1.0, // Higher intensity for block transactions
+            transparent: true,
+            opacity: 0.95
+        });
+        
+        const particle = new THREE.Mesh(geometry, material);
+        
+        // Enhanced trail effect for block transactions
+        const trailGeometry = new THREE.SphereGeometry(1.2, 8, 8);
+        const trailMaterial = new THREE.MeshBasicMaterial({
+            color: color,
+            transparent: true,
+            opacity: 0.6,
+            blending: THREE.AdditiveBlending
+        });
+        const trail = new THREE.Mesh(trailGeometry, trailMaterial);
+        
+        particle.userData = {
+            curve: curve,
+            progress: 0,
+            speed: 0.012 + (value * 0.004), // Slightly slower for more visibility
+            trail: trail,
+            lifespan: 3 + (value * 0.7), // Longer life for block transactions
+            age: 0,
+            isERC20: isERC20,
+            isBlockTransaction: true,
+            blockNumber: blockNumber
+        };
+        
+        this.addressGraphGroup.add(particle);
+        this.addressGraphGroup.add(trail);
+        
+        // Animate the particle along the curve
+        this.animateDirectionalParticle(particle);
+    }
+    
+    animateBlockConnectionCreation(connection) {
+        // Enhanced animation for block transactions with glow effect
+        const originalScale = connection.scale.clone();
+        connection.scale.set(0.05, 0.05, 0.05);
+        
+        const animateScale = () => {
+            const now = Date.now();
+            const duration = 800; // Longer animation for block transactions
+            const startTime = now;
+            
+            const scaleUp = () => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Ease-out cubic curve with extra bounce
+                const easeProgress = 1 - Math.pow(1 - progress, 3);
+                connection.scale.lerpVectors(new THREE.Vector3(0.05, 0.05, 0.05), originalScale, easeProgress);
+                
+                // Add enhanced pulse effect for block transactions
+                const pulse = 1 + Math.sin(progress * Math.PI * 8) * 0.15 * (1 - progress);
+                connection.scale.multiplyScalar(pulse);
+                
+                // Add color intensity animation
+                if (connection.material) {
+                    const intensity = 0.5 + Math.sin(progress * Math.PI * 4) * 0.3;
+                    connection.material.opacity = connection.material.opacity * intensity;
+                }
+                
+                if (progress < 1) {
+                    requestAnimationFrame(scaleUp);
+                } else {
+                    connection.scale.copy(originalScale);
+                }
+            };
+            
+            scaleUp();
+        };
+        
+        animateScale();
+    }
+    
     updateSettings(settings) {
         Object.assign(this.settings, settings);
         
@@ -1290,6 +1955,12 @@ class PsychedelicVisualizer {
         
         // Update particle count - recreate particle system if needed
         if (settings.particleCount !== undefined && this.particles) {
+            this.scene.remove(this.particles);
+            this.createParticleSystem();
+        }
+        
+        // Update blockchain focus - recreate particle system to reflect new focus level
+        if (settings.blockchainFocus !== undefined && this.particles) {
             this.scene.remove(this.particles);
             this.createParticleSystem();
         }
@@ -1602,63 +2273,209 @@ class PsychedelicVisualizer {
             label.position.copy(node.position);
             label.position.y += 15;
             
-            const scale = 1 + Math.sin(this.time * 2 + node.userData.activity) * 0.1;
+            // OPTIMIZED SCALE HANDLING with gradual reduction
+            let baseScale = 1 + Math.sin(this.time * 2 + node.userData.activity) * 0.1;
             const activityScale = Math.min(node.userData.activity * 0.5, 15); // Cap at 15x base size
-            node.scale.setScalar(scale * (5 + activityScale));
             
+            // Handle scale boost reduction
+            if (node.userData.scaleBoost) {
+                const elapsed = Date.now() - node.userData.scaleBoost.startTime;
+                const progress = elapsed / node.userData.scaleBoost.duration;
+                
+                if (progress >= 1) {
+                    // Remove completed scale boost
+                    node.scale.divideScalar(node.userData.scaleBoost.factor);
+                    delete node.userData.scaleBoost;
+                } else {
+                    // Gradual scale reduction
+                    const remainingBoost = 1 + (node.userData.scaleBoost.factor - 1) * (1 - progress);
+                    baseScale *= remainingBoost;
+                }
+            }
+            
+            // Distance-based scaling for better visibility when zooming out
+            const distanceToCamera = this.camera.position.distanceTo(node.position);
+            const maxDistance = 2000; // Scale objects larger when camera is farther than this
+            const minDistanceScale = 1.0; // Minimum scaling factor
+            const maxDistanceScale = 3.0; // Maximum scaling factor when far away
+            
+            // Calculate distance-based scale factor (logarithmic for smoother transition)
+            const distanceScale = distanceToCamera > maxDistance ? 
+                minDistanceScale + (maxDistanceScale - minDistanceScale) * Math.log(distanceToCamera / maxDistance + 1) / Math.log(3) :
+                minDistanceScale;
+            
+            node.scale.setScalar(baseScale * (5 + activityScale) * distanceScale);
             node.material.emissiveIntensity = 0.5 + Math.sin(this.time * 3) * 0.2;
         });
         
         this.connections = this.connections.filter((connection, index) => {
-            connection.userData.age += 0.016;
+            connection.userData.age += 0.008; // Slower aging for better visibility
             const opacity = Math.max(0, 1 - connection.userData.age / connection.userData.lifespan);
-            connection.material.opacity = opacity * 0.6;
             
-            // Update connection geometry to track current node positions
+            // Enhanced opacity scaling for better visibility
+            const minOpacity = connection.userData.isBlockTransaction ? 0.8 : 0.6;
+            connection.material.opacity = Math.max(opacity * minOpacity, 0.1);
+            
+            // Distance-based scaling for connections to maintain visibility when zooming out
+            const connectionCenter = new THREE.Vector3().lerpVectors(
+                connection.userData.from.position, 
+                connection.userData.to.position, 
+                0.5
+            );
+            const distanceToCamera = this.camera.position.distanceTo(connectionCenter);
+            const maxDistance = 2000;
+            const minDistanceScale = 1.0;
+            const maxDistanceScale = 2.5; // Slightly less aggressive than nodes
+            
+            const connectionDistanceScale = distanceToCamera > maxDistance ? 
+                minDistanceScale + (maxDistanceScale - minDistanceScale) * Math.log(distanceToCamera / maxDistance + 1) / Math.log(3) :
+                minDistanceScale;
+            
+            connection.scale.setScalar(connectionDistanceScale);
+            
+            // ENHANCED CONNECTION VALIDATION: Ensure edge lines always connect to two valid nodes
             if (connection.userData.from && connection.userData.to) {
                 const fromNode = connection.userData.from;
                 const toNode = connection.userData.to;
+                
+                // Check if both nodes are still valid and in the scene
+                const fromNodeValid = fromNode && fromNode.parent && this.addressNodes.has(fromNode.userData.address);
+                const toNodeValid = toNode && toNode.parent && this.addressNodes.has(toNode.userData.address);
+                
+                if (!fromNodeValid || !toNodeValid) {
+                    // Remove connection if either node is invalid
+                    this.addressGraphGroup.remove(connection);
+                    if (connection.geometry) connection.geometry.dispose();
+                    if (connection.material) connection.material.dispose();
+                    return false;
+                }
+                
+                // Update connection visual properties for active connections
                 const isERC20 = connection.userData.isERC20 || false;
+                const value = connection.userData.value || 1;
                 
-                // Create updated curve points
+                // Dynamic tube radius based on value and type
+                const baseRadius = connection.userData.isBlockTransaction ? 2.0 : 1.0;
+                const newRadius = Math.max(baseRadius, Math.min(6, value * 3 + baseRadius));
+                
+                // FIXED: Create updated curve points that properly connect nodes
                 const points = [];
-                points.push(fromNode.position.clone());
+                const fromPos = fromNode.position.clone();
+                const toPos = toNode.position.clone();
+                points.push(fromPos);
                 
+                // Calculate natural midpoint between nodes
                 const midPoint = new THREE.Vector3();
-                midPoint.addVectors(fromNode.position, toNode.position);
+                midPoint.addVectors(fromPos, toPos);
                 midPoint.multiplyScalar(0.5);
-                midPoint.y += isERC20 ? 25 : 50;
+                
+                // Add RELATIVE arc height based on connection type and distance
+                const distance = fromPos.distanceTo(toPos);
+                let arcHeight;
+                
+                if (connection.userData.isBlockTransaction) {
+                    // Block transactions get higher arcs
+                    const baseHeight = Math.min(distance * 0.3, isERC20 ? 60 : 120);
+                    const elevation = (connection.userData.blockNumber || 0) * 0.2;
+                    arcHeight = baseHeight + elevation;
+                } else {
+                    // Regular transactions get proportional arcs
+                    arcHeight = Math.min(distance * 0.2, isERC20 ? 40 : 80);
+                }
+                
+                // Create natural arc direction
+                const direction = new THREE.Vector3().subVectors(toPos, fromPos).normalize();
+                const up = new THREE.Vector3(0, 1, 0);
+                const perpendicular = new THREE.Vector3().crossVectors(direction, up).normalize();
+                
+                // Add arc in natural 3D direction
+                if (perpendicular.length() > 0.1) {
+                    const arcFactor = connection.userData.isBlockTransaction ? 0.6 : 0.5;
+                    midPoint.add(perpendicular.multiplyScalar(arcHeight * arcFactor));
+                }
+                
+                // Small upward component for visibility
+                const upwardFactor = connection.userData.isBlockTransaction ? 0.4 : 0.5;
+                midPoint.y += arcHeight * upwardFactor;
+                
                 points.push(midPoint);
+                points.push(toPos);
                 
-                points.push(toNode.position.clone());
-                
-                // Update the curve
+                // Update the curve and geometry for smooth following
                 const newCurve = new THREE.CatmullRomCurve3(points);
-                const tubeRadius = isERC20 ? 1 : 2;
+                const segments = connection.userData.isBlockTransaction ? 32 : 24;
+                const radialSegments = connection.userData.isBlockTransaction ? 12 : 8;
                 
                 // Replace the geometry with updated one
-                connection.geometry.dispose(); // Clean up old geometry
-                connection.geometry = new THREE.TubeGeometry(newCurve, 20, tubeRadius, 8, false);
+                if (connection.geometry) connection.geometry.dispose();
+                connection.geometry = new THREE.TubeGeometry(newCurve, segments, newRadius, radialSegments, false);
+                
+                // Update stored curve for any active flow particles
+                if (connection.userData.curve) {
+                    connection.userData.curve = newCurve;
+                }
+                
+                // Add pulsing effect for active connections
+                const pulseIntensity = 1 + Math.sin(Date.now() * 0.003 + index) * 0.1;
+                if (connection.material) {
+                    connection.material.emissiveIntensity = pulseIntensity * 0.5;
+                }
+            } else {
+                // Remove connection if nodes are missing
+                this.addressGraphGroup.remove(connection);
+                if (connection.geometry) connection.geometry.dispose();
+                if (connection.material) connection.material.dispose();
+                return false;
             }
             
-            if (opacity <= 0) {
+            // Only remove when fully aged out AND opacity is minimal
+            if (connection.userData.age >= connection.userData.lifespan && opacity <= 0.001) {
                 this.addressGraphGroup.remove(connection);
+                if (connection.geometry) connection.geometry.dispose();
+                if (connection.material) connection.material.dispose();
                 return false;
             }
             return true;
         });
         
-        this.addressGraphGroup.children.forEach(child => {
-            if (child.userData && child.userData.curve) {
-                child.userData.progress += child.userData.speed;
-                if (child.userData.progress > 1) {
-                    child.userData.progress = 0;
+        // SAFE CURVE ANIMATION with proper error handling
+        this.addressGraphGroup.children.forEach((child, index) => {
+            if (child.userData && child.userData.curve && child.userData.speed) {
+                try {
+                    child.userData.progress += child.userData.speed;
+                    if (child.userData.progress > 1) {
+                        child.userData.progress = 0;
+                    }
+                    
+                    // SAFE CURVE ACCESS with validation
+                    if (child.userData.curve && 
+                        typeof child.userData.curve.getPoint === 'function' && 
+                        child.userData.progress >= 0 && 
+                        child.userData.progress <= 1) {
+                        
+                        const point = child.userData.curve.getPoint(child.userData.progress);
+                        
+                        // Validate point before using it
+                        if (point && typeof point.x === 'number' && typeof point.y === 'number' && typeof point.z === 'number') {
+                            child.position.copy(point);
+                        }
+                    }
+                } catch (error) {
+                    // Silently handle curve errors and remove problematic children
+                    console.warn('Curve animation error, removing particle:', error);
+                    this.addressGraphGroup.remove(child);
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) child.material.dispose();
                 }
-                
-                const point = child.userData.curve.getPoint(child.userData.progress);
-                child.position.copy(point);
             }
         });
+        
+        // PERFORMANCE CLEANUP to prevent system overload
+        const now = Date.now();
+        if (now - this.performanceMonitor.lastCleanup > 5000) { // Clean up every 5 seconds
+            this.performanceCleanup();
+            this.performanceMonitor.lastCleanup = now;
+        }
         
         // Update hover detection
         this.raycaster.setFromCamera(this.mouse, this.camera);
@@ -1715,6 +2532,55 @@ class PsychedelicVisualizer {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+    
+    performanceCleanup() {
+        // AGGRESSIVE CLEANUP when system is overloaded
+        const isOverloaded = this.performanceMonitor.particleCount > this.performanceMonitor.maxParticles ||
+                           this.performanceMonitor.connectionCount > this.performanceMonitor.maxConnections;
+        
+        if (isOverloaded) {
+            console.warn('System overloaded, performing cleanup...', {
+                particles: this.performanceMonitor.particleCount,
+                connections: this.performanceMonitor.connectionCount
+            });
+            
+            // Force remove oldest connections if over limit
+            while (this.connections.length > this.performanceMonitor.maxConnections / 2) {
+                const oldConnection = this.connections.shift();
+                if (oldConnection) {
+                    this.addressGraphGroup.remove(oldConnection);
+                    if (oldConnection.geometry) oldConnection.geometry.dispose();
+                    if (oldConnection.material) oldConnection.material.dispose();
+                    this.performanceMonitor.connectionCount--;
+                }
+            }
+            
+            // Force remove particles by clearing some address graph children
+            let particlesRemoved = 0;
+            const childrenToRemove = [];
+            this.addressGraphGroup.children.forEach(child => {
+                if (particlesRemoved < 50 && child.userData && child.userData.curve) {
+                    childrenToRemove.push(child);
+                    particlesRemoved++;
+                }
+            });
+            
+            childrenToRemove.forEach(child => {
+                this.addressGraphGroup.remove(child);
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+                this.performanceMonitor.particleCount--;
+            });
+            
+            this.performanceMonitor.isOverloaded = false;
+        }
+        
+        // Sync performance counters with actual counts
+        this.performanceMonitor.connectionCount = this.connections.length;
+        const actualParticleCount = this.addressGraphGroup.children.filter(child => 
+            child.userData && child.userData.curve).length;
+        this.performanceMonitor.particleCount = actualParticleCount;
     }
     
     cleanup() {

@@ -3,20 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ethereum Psychedelic Visualizer</title>
+    <title>EtherTrip - Psychedelic Ethereum Blockchain Visualizer</title>
+    <meta name="description" content="Take a psychedelic journey through the Ethereum blockchain with real-time 3D visualization and immersive audio synthesis">
+    <meta name="keywords" content="ethereum, blockchain, visualizer, 3d, audio, psychedelic, web3, crypto">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div id="canvas-container"></div>
     
+    <div id="etherTripTitle" class="ether-trip-title">EtherTrip</div>
+    
     <div id="controls" class="controls-panel">
-        <h2>Psychedelic Controls</h2>
+        <h2>Controls</h2>
         
         <div class="control-section">
             <h3>Connection</h3>
             <div class="control-group">
                 <label for="rpcEndpoint">RPC Endpoint</label>
-                <input type="text" id="rpcEndpoint" value="wss://mainnet.infura.io/ws/v3/YOUR_API_KEY" placeholder="Enter WebSocket RPC URL">
+                <select id="rpcEndpoint">
+                    <option value="infura">Infura Mainnet</option>
+                    <option value="alchemy">Alchemy Mainnet</option>
+                    <option value="tenderly">Tenderly Mainnet</option>
+                    <option value="wss://ethereum.publicnode.com">Public Node (Free)</option>
+                    <option value="wss://rpc.ankr.com/eth">Ankr Public (Free)</option>
+                    <option value="wss://eth.drpc.org">dRPC Public (Free)</option>
+                    <option value="wss://ethereum-rpc.publicnode.com">PublicNode Alternative (Free)</option>
+                    <option value="wss://cloudflare-eth.com">Cloudflare (Free)</option>
+                    <option value="custom">Custom URL...</option>
+                </select>
+                
+                <div id="apiKeySection" style="display: none; margin-top: 10px;">
+                    <label for="apiKeyInput" style="font-size: 12px; color: #ccc;">API Key</label>
+                    <input type="text" id="apiKeyInput" placeholder="Enter your API key" style="margin-top: 3px;">
+                    <div id="apiKeyHelp" style="font-size: 11px; color: #999; margin-top: 3px;"></div>
+                </div>
+                
+                <input type="text" id="customRpcEndpoint" style="display: none; margin-top: 5px;" placeholder="Enter custom WebSocket RPC URL">
             </div>
             <button id="connectBtn" class="connect-btn">Connect to Ethereum</button>
             <div id="connectionStatus" class="status">Disconnected</div>
@@ -92,6 +114,14 @@
                 <input type="range" id="waveAmplitude" min="0" max="100" value="50">
             </div>
             <div class="control-group">
+                <label for="itemLifespan">Item Lifespan (seconds)</label>
+                <input type="range" id="itemLifespan" min="2" max="30" value="8">
+            </div>
+            <div class="control-group">
+                <label for="blockchainFocus">Blockchain Focus (0=All Effects, 100=Data Only)</label>
+                <input type="range" id="blockchainFocus" min="0" max="100" value="30">
+            </div>
+            <div class="control-group">
                 <label for="showAddressGraph">
                     <input type="checkbox" id="showAddressGraph" checked>
                     Show Address Graph
@@ -101,7 +131,7 @@
     </div>
     
     <div id="floatingControls" class="floating-controls">
-        <button id="toggleControls" class="floating-btn" title="Hide Controls">✕</button>
+        <button id="toggleControls" class="floating-btn" title="Hide Controls">→</button>
         <button id="muteBtn" class="floating-btn" title="Mute">🔊</button>
         <button id="pauseBtn" class="floating-btn" title="Pause">⏸️</button>
     </div>
@@ -125,7 +155,7 @@
                     </svg>
                 </a>
             </div>
-            <div class="version">v0.2.0</div>
+            <div class="version">v0.2.3</div>
         </div>
     </div>
 

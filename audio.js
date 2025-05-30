@@ -17,7 +17,7 @@ class PsychedelicAudioEngine {
             filterResonance: 10,
             delayTime: 0.375,
             delayFeedback: 0.5,
-            soundStyle: 'piano' // acid, jazz, electronic, piano, minimal
+            soundStyle: 'retro' // retro, piano, acid, jazz, electronic, minimal
         };
         
         this.isMuted = false;
@@ -253,6 +253,15 @@ class PsychedelicAudioEngine {
                 if (step === 4 || step === 12) this.playHiHat(time, false);
                 break;
                 
+            case 'retro':
+                // Classic 80s synth-pop pattern
+                if (step % 4 === 0) this.playKick(time);
+                if (step === 4 || step === 12) this.playSnare(time);
+                if (step % 2 === 1) this.playHiHat(time, step === 7 || step === 15);
+                // Add classic 80s gated reverb snare
+                if (step === 6) this.playRetroGateSnare(time);
+                break;
+                
             default:
                 // Fallback to acid pattern
                 if (step % 4 === 0) this.playKick(time);
@@ -283,6 +292,8 @@ class PsychedelicAudioEngine {
             this.playPianoTransaction(audioParams, now);
         } else if (this.settings.soundStyle === 'minimal') {
             this.playMinimalTransaction(audioParams, now);
+        } else if (this.settings.soundStyle === 'retro') {
+            this.playRetroTransaction(audioParams, now);
         }
     }
     
@@ -562,6 +573,8 @@ class PsychedelicAudioEngine {
             this.playERC20Piano(frequency, volume, duration, value, now);
         } else if (this.settings.soundStyle === 'minimal') {
             this.playERC20Minimal(frequency, volume, duration, value, now);
+        } else if (this.settings.soundStyle === 'retro') {
+            this.playERC20Retro(frequency, volume, duration, value, now);
         }
     }
     
@@ -984,6 +997,130 @@ class PsychedelicAudioEngine {
         osc.stop(now + 0.3);
     }
     
+    // RETRO SYNTH PACK - Classic 80s synthesizer sounds
+    playRetroTransaction(audioParams, now) {
+        // Classic 80s DX7-style FM synthesis with chorus
+        const carrier = this.audioContext.createOscillator();
+        const modulator = this.audioContext.createOscillator();
+        const modGain = this.audioContext.createGain();
+        const gain = this.audioContext.createGain();
+        const chorus = this.createRetroChorus();
+        
+        // FM synthesis setup
+        carrier.type = 'sine';
+        modulator.type = 'sine';
+        
+        carrier.frequency.value = audioParams.frequency;
+        modulator.frequency.value = audioParams.frequency * 2.1; // Classic FM ratio
+        
+        // Modulation depth based on transaction value
+        const modDepth = 30 + (audioParams.valueRange * 50);
+        modGain.gain.value = modDepth;
+        
+        // Classic 80s envelope
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(audioParams.volume * 0.7, now + 0.05);
+        gain.gain.exponentialRampToValueAtTime(audioParams.volume * 0.4, now + 0.4);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + audioParams.duration);
+        
+        // Connect FM synthesis chain
+        modulator.connect(modGain);
+        modGain.connect(carrier.frequency);
+        carrier.connect(gain);
+        gain.connect(chorus);
+        chorus.connect(this.panner);
+        
+        // Pan based on transaction hash for stereo width
+        this.panner.pan.value = audioParams.pan;
+        
+        carrier.start(now);
+        modulator.start(now);
+        carrier.stop(now + audioParams.duration);
+        modulator.stop(now + audioParams.duration);
+    }
+    
+    playERC20Retro(frequency, volume, duration, value, now) {
+        // Classic arpeggiator sound for ERC20 transfers
+        const arpNotes = [0, 4, 7, 12]; // Major triad + octave
+        
+        arpNotes.forEach((semitone, index) => {
+            setTimeout(() => {
+                const osc = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+                const chorus = this.createRetroChorus();
+                
+                osc.type = 'square';
+                osc.frequency.value = frequency * Math.pow(2, semitone / 12);
+                
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(volume * 0.6, now + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                
+                osc.connect(gain);
+                gain.connect(chorus);
+                chorus.connect(this.reverb);
+                
+                osc.start(now);
+                osc.stop(now + 0.15);
+            }, index * 80); // Classic arpeggiator timing
+        });
+    }
+    
+    playRetroGateSnare(time) {
+        // Classic 80s gated reverb snare
+        const noise = this.audioContext.createBufferSource();
+        const filter = this.audioContext.createBiquadFilter();
+        const gain = this.audioContext.createGain();
+        const gate = this.audioContext.createGain();
+        
+        // Create noise buffer
+        const buffer = this.audioContext.createBuffer(1, this.audioContext.sampleRate * 0.1, this.audioContext.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < data.length; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        noise.buffer = buffer;
+        
+        // Filter for snare tone
+        filter.type = 'bandpass';
+        filter.frequency.value = 200;
+        filter.Q.value = 0.5;
+        
+        // Classic gated envelope
+        gain.gain.setValueAtTime(0.4, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+        
+        // Gate effect - classic 80s sound
+        gate.gain.setValueAtTime(1, time);
+        gate.gain.setValueAtTime(1, time + 0.05);
+        gate.gain.setValueAtTime(0, time + 0.051);
+        gate.gain.setValueAtTime(0, time + 0.1);
+        
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(gate);
+        gate.connect(this.reverb);
+        
+        noise.start(time);
+        noise.stop(time + 0.1);
+    }
+    
+    createRetroChorus() {
+        // Simplified retro chorus effect
+        const delay = this.audioContext.createDelay(0.05);
+        const feedback = this.audioContext.createGain();
+        
+        // Classic chorus timing
+        delay.delayTime.value = 0.025;
+        feedback.gain.value = 0.3;
+        
+        // Simple feedback loop for chorus
+        delay.connect(feedback);
+        feedback.connect(delay);
+        
+        return delay;
+    }
+    
     getScaleNote(index) {
         const scale = this.scales[this.currentScale];
         const octave = Math.floor(index / scale.length);
@@ -992,20 +1129,20 @@ class PsychedelicAudioEngine {
     }
     
     getMusicalNote(noteIndex) {
-        // Musical note constraint system for pleasant piano sounds
-        // Maps any note index to a constrained musical scale
+        // RESEARCH-BASED PLEASANT PIANO FREQUENCIES
+        // Based on equal temperament theory and human hearing comfort zones
         
-        // Define pleasant piano scales (semitone intervals from root)
+        // Define pleasant musical scales with emphasis on consonant intervals
         const pianoScales = {
-            major: [0, 2, 4, 5, 7, 9, 11],           // C major scale
-            minor: [0, 2, 3, 5, 7, 8, 10],          // Natural minor scale
-            pentatonic: [0, 2, 4, 7, 9],            // Major pentatonic (very pleasant)
-            blues: [0, 3, 5, 6, 7, 10],             // Blues scale
-            dorian: [0, 2, 3, 5, 7, 9, 10],         // Dorian mode (jazzy)
-            lydian: [0, 2, 4, 6, 7, 9, 11]          // Lydian mode (dreamy)
+            major: [0, 2, 4, 5, 7, 9, 11],           // C major - most consonant
+            pentatonic: [0, 2, 4, 7, 9],            // Pentatonic - no dissonant intervals
+            minor: [0, 2, 3, 5, 7, 8, 10],          // Natural minor
+            dorian: [0, 2, 3, 5, 7, 9, 10],         // Dorian mode
+            wholeTone: [0, 2, 4, 6, 8, 10],         // Whole tone - dreamy
+            blues: [0, 3, 5, 6, 7, 10]              // Blues scale
         };
         
-        // Choose scale based on current sound style for consistency
+        // Choose scale - default to pentatonic for maximum pleasantness
         let scale;
         switch (this.settings.soundStyle) {
             case 'jazz':
@@ -1013,26 +1150,34 @@ class PsychedelicAudioEngine {
                 break;
             case 'acid':
             case 'electronic':
-                scale = pianoScales.minor;
+                scale = pianoScales.wholeTone;
                 break;
             case 'minimal':
                 scale = pianoScales.pentatonic;
                 break;
+            case 'retro':
+                scale = pianoScales.pentatonic; // Retro sounds best with pentatonic
+                break;
             case 'piano':
             default:
-                scale = pianoScales.major;
+                scale = pianoScales.pentatonic; // Changed from major to pentatonic for pleasantness
         }
         
-        // Calculate constrained note
-        const octave = Math.floor(noteIndex / 12);
+        // Calculate note within comfortable piano range
+        // Research shows pleasant frequencies: 110Hz-2kHz core range
+        // Piano C4 (middle C) = 261.63 Hz
+        const octave = Math.floor(noteIndex / scale.length);
         const scaleIndex = noteIndex % scale.length;
-        const constrainedNote = scale[scaleIndex] + (octave * 12);
         
-        // Ensure note stays within pleasant piano range (C2 to C7)
-        // Piano range: C2 = -21, C7 = 36 (relative to middle C = 0)
-        const clampedNote = Math.max(-21, Math.min(36, constrainedNote));
+        // Constrain to pleasant octave range (C3 to C6)
+        // C3 = -12 semitones from middle C, C6 = +24 semitones from middle C
+        const constrainedOctave = Math.max(0, Math.min(2, octave)); // Max 2 octaves up
+        const constrainedNote = scale[scaleIndex] + (constrainedOctave * 12) - 12; // Start from C3
         
-        return clampedNote;
+        // Final range check: keep between C3 (-12) and C6 (+24)
+        const finalNote = Math.max(-12, Math.min(24, constrainedNote));
+        
+        return finalNote;
     }
     
     updateSettings(settings) {
@@ -1152,6 +1297,76 @@ class PsychedelicAudioEngine {
         }
     }
     
+    playNewAddress(address) {
+        // Subtle sound for new address appearance - works across all sound kits
+        if (!this.initialized || this.isMuted) return;
+        
+        const now = this.audioContext.currentTime;
+        
+        // Create subtle chime based on address hash
+        const addressHash = parseInt(address.slice(-8), 16);
+        const noteIndex = addressHash % 12;
+        const baseFreq = 880; // High A note for subtlety
+        const frequency = baseFreq * Math.pow(2, noteIndex / 12);
+        
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+        const filter = this.audioContext.createBiquadFilter();
+        
+        osc.type = 'sine'; // Pure sine for subtle effect
+        osc.frequency.value = frequency;
+        
+        // Very subtle volume (2% of max)
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.02, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+        
+        // Gentle highpass filter for crystalline quality
+        filter.type = 'highpass';
+        filter.frequency.value = 600;
+        filter.Q.value = 1;
+        
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.reverb);
+        
+        osc.start(now);
+        osc.stop(now + 0.5);
+    }
+    
+    playNewTransaction() {
+        // Subtle sound for new transaction appearance - works across all sound kits
+        if (!this.initialized || this.isMuted) return;
+        
+        const now = this.audioContext.currentTime;
+        
+        // Create subtle click/tick sound
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+        const filter = this.audioContext.createBiquadFilter();
+        
+        // Brief filtered noise burst
+        osc.type = 'square';
+        osc.frequency.value = 1200 + Math.random() * 400; // High frequency click
+        
+        // Very brief and subtle (1.5% volume)
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.015, now + 0.002);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        
+        // Bandpass filter for defined click
+        filter.type = 'bandpass';
+        filter.frequency.value = 1500;
+        filter.Q.value = 3;
+        
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.delay); // Slight delay for spatial effect
+        
+        osc.start(now);
+        osc.stop(now + 0.08);
+    }
+    
     calculateValueBasedParameters(valueInEth, gasPrice, tx) {
         // VALUE-BASED AUDIO PROCESSING SYSTEM
         // Universal system that works independently of sound packs
@@ -1162,19 +1377,34 @@ class PsychedelicAudioEngine {
         const isHighValue = valueInEth > 1; // 1+ ETH transactions
         const isMediumValue = valueInEth > 0.1; // 0.1+ ETH transactions
         
-        // MUSICAL FREQUENCY CALCULATION - Fixed for pleasant audio
-        // Limit octave shifts to prevent extreme frequencies
-        const octaveShift = Math.min(Math.floor(valueRange * 1.5), 3); // Max 3 octaves up
-        const noteIndex = (parseInt(tx.value || '0', 16) % 12) + octaveShift; // Only use 12 notes per octave
-        const limitedNote = this.getMusicalNote(noteIndex); // Use new musical function
-        const frequency = this.settings.transactionPitch * Math.pow(2, limitedNote / 12);
+        // MUSICAL FREQUENCY CALCULATION - Research-based pleasant audio
+        // Use transaction hash for consistent but varied note selection
+        const hashInt = parseInt(tx.hash ? tx.hash.slice(-8) : '0', 16);
+        const noteIndex = hashInt % 24; // 24 note range for more variety
+        const limitedNote = this.getMusicalNote(noteIndex);
         
-        // FREQUENCY SAFETY LIMITS - Keep in comfortable hearing range
-        const safeFrequency = Math.min(Math.max(frequency, 80), 2000); // 80Hz - 2000Hz range
+        // Calculate frequency using equal temperament: f = 440 * 2^((n-69)/12)
+        // A4 = 440Hz is note 69 in MIDI, middle C (C4) is note 60
+        const midiNote = 60 + limitedNote; // Start from middle C
+        const frequency = 440 * Math.pow(2, (midiNote - 69) / 12);
         
-        // VOLUME SCALING (logarithmic)
-        const baseVolume = Math.min(0.3, 0.05 + valueRange * 0.12);
-        const volume = isHighValue ? baseVolume * 1.3 : baseVolume; // Boost high value transactions
+        // ENHANCED FREQUENCY SAFETY - Research-based pleasant ranges
+        // Core pleasant range: 110Hz-2kHz with special handling for extremes
+        let safeFrequency;
+        if (frequency < 110) {
+            safeFrequency = 110 + (frequency % 55); // Keep low frequencies in 110-165Hz range
+        } else if (frequency > 1760) { // High G6
+            safeFrequency = 880 + (frequency % 440); // Keep high frequencies in 880-1320Hz range  
+        } else {
+            safeFrequency = frequency; // Frequency is already in pleasant range
+        }
+        
+        // VOLUME SCALING (logarithmic) - STRICTER LIMITS for ear safety
+        const baseVolume = Math.min(0.12, 0.02 + valueRange * 0.06); // Reduced from 0.3 to 0.12 max
+        const volume = isHighValue ? baseVolume * 1.1 : baseVolume; // Reduced boost from 1.3x to 1.1x
+        
+        // ADDITIONAL VOLUME SAFETY for block transaction overwhelm
+        const finalVolume = Math.min(volume, 0.08); // Hard limit: never exceed 8% volume
         
         // DURATION SCALING
         const baseDuration = Math.min(3, 0.4 + valueRange * 0.4);
@@ -1209,7 +1439,7 @@ class PsychedelicAudioEngine {
         return {
             // Core parameters
             frequency: safeFrequency,
-            volume,
+            volume: finalVolume,
             duration,
             valueInEth,
             valueRange,
@@ -1267,8 +1497,8 @@ class PsychedelicAudioEngine {
             baseFreq * 2     // Octave
         ].slice(0, selectorComplexity); // Use more frequencies for complex contracts
         
-        // Dramatic volume scaling (smart contracts are more prominent)
-        const baseVolume = Math.min(0.4, 0.1 + Math.log10(Math.max(valueInEth, 0.001) + 1) * 0.15);
+        // Dramatic volume scaling (smart contracts are more prominent) - REDUCED for ear safety
+        const baseVolume = Math.min(0.15, 0.05 + Math.log10(Math.max(valueInEth, 0.001) + 1) * 0.08);
         
         // Longer durations for smart contracts (they're more significant)
         const duration = Math.min(4, 1.2 + valueInEth * 0.8 + (gasPrice / 1e9) * 0.02);

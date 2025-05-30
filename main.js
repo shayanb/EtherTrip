@@ -10,6 +10,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     let isProcessingQueue = false;
     const BLOCK_TIME = 12000; // 12 seconds in milliseconds
     
+    // Track actual processed transactions for accurate stats
+    let processedTxCount = 0;
+    
     function animate() {
         requestAnimationFrame(animate);
         visualizer.animate();
@@ -36,6 +39,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     visualizer.addTransaction(tx);
                     audioEngine.playTransaction(tx);
                 }
+                
+                // Increment processed transaction count
+                processedTxCount++;
                 updateStats();
                 
                 if (index === totalTxs - 1) {
@@ -101,20 +107,115 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load saved RPC endpoint from localStorage
     const savedEndpoint = localStorage.getItem('ethVisualizerRpcEndpoint');
     if (savedEndpoint) {
-        document.getElementById('rpcEndpoint').value = savedEndpoint;
+        const rpcSelect = document.getElementById('rpcEndpoint');
+        const customInput = document.getElementById('customRpcEndpoint');
+        
+        // Check if saved endpoint matches any dropdown options
+        const optionExists = Array.from(rpcSelect.options).some(option => option.value === savedEndpoint);
+        
+        if (optionExists) {
+            rpcSelect.value = savedEndpoint;
+        } else {
+            // Use custom option for saved endpoints not in dropdown
+            rpcSelect.value = 'custom';
+            customInput.value = savedEndpoint;
+            customInput.style.display = 'block';
+        }
     }
+    
+    // Handle RPC endpoint dropdown changes
+    document.getElementById('rpcEndpoint').addEventListener('change', (e) => {
+        const customInput = document.getElementById('customRpcEndpoint');
+        const apiKeySection = document.getElementById('apiKeySection');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const apiKeyHelp = document.getElementById('apiKeyHelp');
+        
+        // Hide all inputs first
+        customInput.style.display = 'none';
+        apiKeySection.style.display = 'none';
+        
+        const selectedValue = e.target.value;
+        
+        if (selectedValue === 'custom') {
+            customInput.style.display = 'block';
+            customInput.focus();
+        } else if (['infura', 'alchemy', 'tenderly'].includes(selectedValue)) {
+            // Show API key input for services that require keys
+            apiKeySection.style.display = 'block';
+            apiKeyInput.focus();
+            
+            // Set helpful text for each service
+            switch (selectedValue) {
+                case 'infura':
+                    apiKeyHelp.textContent = 'Get your free API key from infura.io';
+                    break;
+                case 'alchemy':
+                    apiKeyHelp.textContent = 'Get your free API key from alchemy.com';
+                    break;
+                case 'tenderly':
+                    apiKeyHelp.textContent = 'Get your API key from tenderly.co';
+                    break;
+            }
+        }
+    });
     
     document.getElementById('connectBtn').addEventListener('click', async () => {
         const btn = document.getElementById('connectBtn');
-        const rpcEndpoint = document.getElementById('rpcEndpoint').value;
+        const rpcSelect = document.getElementById('rpcEndpoint');
+        const customInput = document.getElementById('customRpcEndpoint');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        
+        let rpcEndpoint;
+        const selectedValue = rpcSelect.value;
+        
+        if (selectedValue === 'custom') {
+            rpcEndpoint = customInput.value;
+            if (!rpcEndpoint) {
+                alert('Please enter a custom RPC endpoint URL');
+                return;
+            }
+        } else if (['infura', 'alchemy', 'tenderly'].includes(selectedValue)) {
+            // Construct URL with API key
+            const apiKey = apiKeyInput.value;
+            if (!apiKey) {
+                alert('Please enter your API key for ' + selectedValue);
+                return;
+            }
+            
+            // Build URL based on service
+            switch (selectedValue) {
+                case 'infura':
+                    rpcEndpoint = `wss://mainnet.infura.io/ws/v3/${apiKey}`;
+                    break;
+                case 'alchemy':
+                    rpcEndpoint = `wss://eth-mainnet.alchemyapi.io/v2/${apiKey}`;
+                    break;
+                case 'tenderly':
+                    rpcEndpoint = `wss://mainnet.gateway.tenderly.co/${apiKey}`;
+                    break;
+            }
+        } else {
+            // Direct URL (no API key needed)
+            rpcEndpoint = selectedValue;
+        }
         
         if (!rpcEndpoint) {
-            alert('Please enter an RPC endpoint URL');
+            alert('Please select or enter a valid RPC endpoint');
             return;
         }
         
         if (ethereum.connected) {
+            // Immediately update UI when disconnect is clicked
+            btn.disabled = true;
+            btn.textContent = 'Disconnecting...';
+            const status = document.getElementById('connectionStatus');
+            status.textContent = 'Disconnecting...';
+            status.className = 'status disconnected';
+            
             await ethereum.disconnect();
+            
+            // Re-enable button after disconnect
+            btn.disabled = false;
         } else {
             btn.disabled = true;
             btn.textContent = 'Connecting...';
@@ -147,6 +248,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     document.getElementById('waveAmplitude').addEventListener('input', (e) => {
         visualizer.updateSettings({ waveAmplitude: e.target.value / 100 });
+    });
+    
+    document.getElementById('itemLifespan').addEventListener('input', (e) => {
+        visualizer.updateSettings({ itemLifespan: parseFloat(e.target.value) });
+    });
+    
+    document.getElementById('blockchainFocus').addEventListener('input', (e) => {
+        visualizer.updateSettings({ blockchainFocus: e.target.value / 100 });
     });
     
     document.getElementById('masterVolume').addEventListener('input', (e) => {
@@ -199,7 +308,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             btn.textContent = '☰';
             btn.title = 'Show Controls';
         } else {
-            btn.textContent = '✕';
+            btn.textContent = '→';
             btn.title = 'Hide Controls';
         }
     });
@@ -237,7 +346,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function updateStats() {
         const stats = ethereum.getStats();
         document.getElementById('blockCount').textContent = stats.blockCount;
-        document.getElementById('txCount').textContent = stats.txCount;
+        document.getElementById('txCount').textContent = processedTxCount; // Use actual processed count
         document.getElementById('erc20Count').textContent = stats.erc20Count;
         document.getElementById('gasPrice').textContent = stats.gasPrice;
         
