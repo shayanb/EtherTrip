@@ -333,6 +333,12 @@ select option {
     border-color: #ffff00;
 }
 
+.floating-btn.active {
+    color: #00ff00;
+    border-color: #00ff00;
+    background: rgba(0, 255, 0, 0.1);
+}
+
 .ether-trip-title {
     position: fixed;
     top: 20px;

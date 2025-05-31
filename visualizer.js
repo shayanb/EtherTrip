@@ -38,7 +38,8 @@ class PsychedelicVisualizer {
             waveAmplitude: 0.5,
             showAddressGraph: true,
             itemLifespan: 12.0, // Extended lifespan - connections persist for at least 1 block duration (12s)
-            blockchainFocus: 0.3 // 0 = all effects, 1 = data only
+            blockchainFocus: 0.3, // 0 = all effects, 1 = data only
+            surfMode: false // Automatic camera movement
         };
         
         this.gasPriceEffect = {
@@ -98,6 +99,19 @@ class PsychedelicVisualizer {
             enabled: true,
             target: new THREE.Vector3(0, 0, 0),
             speed: 0.01
+        };
+        
+        // Surf mode camera state
+        this.surfMode = {
+            angle: 0,
+            verticalAngle: 0,
+            radius: 300,
+            baseRadius: 300,
+            radiusVariation: 150,
+            angleSpeed: 0.002,
+            verticalSpeed: 0.001,
+            radiusSpeed: 0.0005,
+            lookAheadDistance: 100
         };
         
         this.setupLights();
@@ -2477,50 +2491,117 @@ class PsychedelicVisualizer {
             this.performanceMonitor.lastCleanup = now;
         }
         
-        // Update hover detection
-        this.raycaster.setFromCamera(this.mouse, this.camera);
+        // Update hover detection - check if mouse is over controls first
+        const mouseX = window.innerWidth * (this.mouse.x + 1) / 2;
+        const mouseY = window.innerHeight * (-this.mouse.y + 1) / 2;
+        const controls = document.querySelector('.controls');
+        const floatingControls = document.querySelector('.floating-controls');
         
-        const allObjects = [
-            ...this.transactions,
-            ...this.blocks,
-            ...this.smartContracts,
-            ...Array.from(this.addressNodes.values()),
-            ...Array.from(this.pendingTransactions.values())
-        ];
+        // Check if mouse is over any control panels
+        let isOverControls = false;
+        if (controls) {
+            const rect = controls.getBoundingClientRect();
+            isOverControls = mouseX >= rect.left && mouseX <= rect.right && 
+                           mouseY >= rect.top && mouseY <= rect.bottom;
+        }
+        if (!isOverControls && floatingControls) {
+            const rect = floatingControls.getBoundingClientRect();
+            isOverControls = mouseX >= rect.left && mouseX <= rect.right && 
+                           mouseY >= rect.top && mouseY <= rect.bottom;
+        }
         
-        const intersects = this.raycaster.intersectObjects(allObjects, true);
-        
-        if (intersects.length > 0) {
-            let object = intersects[0].object;
-            // If the object is part of a group (like blocks), use the group's userData
-            while (object.parent && !object.userData.info && object.parent.userData && object.parent.userData.info) {
-                object = object.parent;
-            }
-            if (object !== this.hoveredObject) {
-                this.hoveredObject = object;
-                this.updateTooltip(object, { clientX: window.innerWidth * (this.mouse.x + 1) / 2, clientY: window.innerHeight * (-this.mouse.y + 1) / 2 });
+        // Only do raycasting if not over controls
+        if (!isOverControls) {
+            this.raycaster.setFromCamera(this.mouse, this.camera);
+            
+            const allObjects = [
+                ...this.transactions,
+                ...this.blocks,
+                ...this.smartContracts,
+                ...Array.from(this.addressNodes.values()),
+                ...Array.from(this.pendingTransactions.values())
+            ];
+            
+            const intersects = this.raycaster.intersectObjects(allObjects, true);
+            
+            if (intersects.length > 0) {
+                let object = intersects[0].object;
+                // If the object is part of a group (like blocks), use the group's userData
+                while (object.parent && !object.userData.info && object.parent.userData && object.parent.userData.info) {
+                    object = object.parent;
+                }
+                if (object !== this.hoveredObject) {
+                    this.hoveredObject = object;
+                    this.updateTooltip(object, { clientX: mouseX, clientY: mouseY });
+                }
+            } else {
+                if (this.hoveredObject) {
+                    this.hoveredObject = null;
+                    this.tooltip.style.display = 'none';
+                }
             }
         } else {
+            // Hide tooltip when over controls
             if (this.hoveredObject) {
                 this.hoveredObject = null;
                 this.tooltip.style.display = 'none';
             }
         }
         
-        // Update camera to follow universe growth (without auto-zoom)
-        if (this.cameraAutoMove.enabled && this.blockPositions.length > 0) {
-            // Calculate center of universe
-            const center = new THREE.Vector3();
-            this.blockPositions.forEach(pos => {
-                center.add(pos);
-            });
-            center.divideScalar(this.blockPositions.length);
+        // Update camera movement based on mode
+        if (this.settings.surfMode) {
+            // Surf mode: automatic camera movement around the universe
+            if (this.blockPositions.length > 0) {
+                // Calculate center of universe
+                const center = new THREE.Vector3();
+                this.blockPositions.forEach(pos => {
+                    center.add(pos);
+                });
+                center.divideScalar(this.blockPositions.length);
+                
+                // Update surf mode angles
+                this.surfMode.angle += this.surfMode.angleSpeed;
+                this.surfMode.verticalAngle += this.surfMode.verticalSpeed;
+                
+                // Create dynamic radius with sinusoidal variation
+                const radiusVariation = Math.sin(this.surfMode.angle * 2) * this.surfMode.radiusVariation;
+                const currentRadius = this.surfMode.baseRadius + radiusVariation;
+                
+                // Calculate camera position on a 3D path
+                const x = center.x + Math.cos(this.surfMode.angle) * currentRadius;
+                const y = center.y + Math.sin(this.surfMode.verticalAngle) * 100 + 150; // Slight vertical movement
+                const z = center.z + Math.sin(this.surfMode.angle) * currentRadius;
+                
+                // Smoothly move camera to new position
+                this.camera.position.lerp(new THREE.Vector3(x, y, z), 0.02);
+                
+                // Look slightly ahead of the center for more dynamic view
+                const lookAheadAngle = this.surfMode.angle + 0.1;
+                const lookAtX = center.x + Math.cos(lookAheadAngle) * this.surfMode.lookAheadDistance;
+                const lookAtZ = center.z + Math.sin(lookAheadAngle) * this.surfMode.lookAheadDistance;
+                
+                // Update camera target
+                this.controls.target.lerp(new THREE.Vector3(lookAtX, center.y, lookAtZ), 0.02);
+                
+                // Disable user controls in surf mode
+                this.controls.enabled = false;
+            }
+        } else {
+            // Regular mode: re-enable controls and follow universe growth
+            this.controls.enabled = true;
             
-            // Smoothly move camera target to follow center
-            this.cameraAutoMove.target.lerp(center, this.cameraAutoMove.speed);
-            this.controls.target.lerp(this.cameraAutoMove.target, 0.02);
-            
-            // Removed automatic camera distance adjustment - let user control zoom
+            if (this.cameraAutoMove.enabled && this.blockPositions.length > 0) {
+                // Calculate center of universe
+                const center = new THREE.Vector3();
+                this.blockPositions.forEach(pos => {
+                    center.add(pos);
+                });
+                center.divideScalar(this.blockPositions.length);
+                
+                // Smoothly move camera target to follow center
+                this.cameraAutoMove.target.lerp(center, this.cameraAutoMove.speed);
+                this.controls.target.lerp(this.cameraAutoMove.target, 0.02);
+            }
         }
         
         this.controls.update();

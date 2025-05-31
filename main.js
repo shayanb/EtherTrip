@@ -343,6 +343,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
     
+    document.getElementById('surfModeBtn').addEventListener('click', () => {
+        const btn = document.getElementById('surfModeBtn');
+        const surfMode = !visualizer.settings.surfMode;
+        visualizer.updateSettings({ surfMode: surfMode });
+        
+        if (surfMode) {
+            btn.classList.add('active');
+            btn.title = 'Exit Surf Mode';
+        } else {
+            btn.classList.remove('active');
+            btn.title = 'Toggle Surf Mode';
+        }
+    });
+    
     function updateStats() {
         const stats = ethereum.getStats();
         document.getElementById('blockCount').textContent = stats.blockCount;

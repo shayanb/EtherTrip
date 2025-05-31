@@ -17,7 +17,7 @@ class PsychedelicAudioEngine {
             filterResonance: 10,
             delayTime: 0.375,
             delayFeedback: 0.5,
-            soundStyle: 'retro' // retro, piano, acid, jazz, electronic, minimal
+            soundStyle: 'minimal' // retro, piano, acid, jazz, electronic, minimal
         };
         
         this.isMuted = false;
@@ -408,21 +408,21 @@ class PsychedelicAudioEngine {
         const chorusGain = this.audioContext.createGain();
         
         // FM synthesis for digital character
-        carrier.type = 'square';
+        carrier.type = 'sawtooth'; // Softer than square but still electronic
         carrier.frequency.setValueAtTime(audioParams.frequency, now);
         
         modulator.type = 'sine';
         modulator.frequency.setValueAtTime(audioParams.frequency * 0.25, now); // Sub-harmonic modulation
         
         // VALUE-BASED modulation amount
-        modulatorGain.gain.setValueAtTime(audioParams.frequency * 0.1 * (1 + audioParams.valueInEth), now);
+        modulatorGain.gain.setValueAtTime(audioParams.frequency * 0.05 * (1 + audioParams.valueInEth * 0.5), now); // Gentler modulation
         
         // VALUE-BASED digital filter with movement
-        digitalFilter.type = 'notch';
-        digitalFilter.frequency.setValueAtTime(audioParams.frequency * 2, now);
-        digitalFilter.frequency.exponentialRampToValueAtTime(audioParams.frequency * 6, now + audioParams.duration * 0.6);
-        digitalFilter.frequency.exponentialRampToValueAtTime(audioParams.frequency * 1.5, now + audioParams.duration);
-        digitalFilter.Q.value = 15; // Sharp notch for digital character
+        digitalFilter.type = 'lowpass'; // Warmer than notch
+        digitalFilter.frequency.setValueAtTime(Math.min(audioParams.frequency * 4, 3000), now);
+        digitalFilter.frequency.exponentialRampToValueAtTime(Math.min(audioParams.frequency * 8, 4000), now + audioParams.duration * 0.6);
+        digitalFilter.frequency.exponentialRampToValueAtTime(Math.min(audioParams.frequency * 2, 2000), now + audioParams.duration);
+        digitalFilter.Q.value = 5; // Moderate resonance for character without harshness
         
         // VALUE-BASED chorus for width
         chorus.delayTime.value = 0.01;
@@ -430,7 +430,7 @@ class PsychedelicAudioEngine {
         
         // VALUE-BASED sharp electronic envelope
         gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(audioParams.volume * 0.9, now + audioParams.attack);
+        gain.gain.linearRampToValueAtTime(audioParams.volume * 0.7, now + Math.max(audioParams.attack, 0.005)); // Softer volume and attack
         gain.gain.exponentialRampToValueAtTime(0.001, now + audioParams.duration);
         
         // Audio routing: modulator -> modulatorGain -> carrier frequency (FM)
@@ -466,21 +466,21 @@ class PsychedelicAudioEngine {
         const resonance = this.audioContext.createConvolver();
         
         // Create piano-like harmonic series
-        const harmonicRatios = [1, 2, 3, 4, 5.1, 6.3]; // Slightly inharmonic like real piano
-        const harmonicLevels = [1, 0.4, 0.3, 0.2, 0.15, 0.1];
+        const harmonicRatios = [1, 2, 3, 4, 5]; // Natural harmonic series
+        const harmonicLevels = [1, 0.5, 0.25, 0.125, 0.0625]; // Gentler harmonic falloff
         
         harmonicRatios.forEach((ratio, index) => {
             const harmonic = this.audioContext.createOscillator();
             const gain = this.audioContext.createGain();
             
-            // Use triangle for fundamental, sine for harmonics
-            harmonic.type = index === 0 ? 'triangle' : 'sine';
+            // Use sine waves for all harmonics for warmer tone
+            harmonic.type = 'sine';
             harmonic.frequency.setValueAtTime(audioParams.frequency * ratio, now);
             
             // VALUE-BASED piano envelope with rich harmonic control
             const harmLevel = audioParams.volume * harmonicLevels[index] * (0.5 + audioParams.valueInEth * 0.5);
             gain.gain.setValueAtTime(0, now);
-            gain.gain.linearRampToValueAtTime(harmLevel, now + audioParams.attack);
+            gain.gain.linearRampToValueAtTime(harmLevel, now + Math.max(audioParams.attack, 0.01)); // Minimum 10ms attack
             gain.gain.exponentialRampToValueAtTime(harmLevel * audioParams.sustain, now + audioParams.decay);
             gain.gain.exponentialRampToValueAtTime(0.001, now + audioParams.duration);
             
@@ -493,8 +493,8 @@ class PsychedelicAudioEngine {
         
         // VALUE-BASED warm acoustic filter
         pianoFilter.type = 'lowpass';
-        pianoFilter.frequency.value = 4000 + (audioParams.valueInEth * 1000); // Brighter for higher values
-        pianoFilter.Q.value = 0.5; // Natural rolloff
+        pianoFilter.frequency.value = Math.min(2500 + (audioParams.valueInEth * 500), 3500); // Warmer, capped at 3.5kHz
+        pianoFilter.Q.value = 0.3; // Gentler rolloff
         
         // VALUE-BASED stereo panning
         const panner = this.audioContext.createStereoPanner();
