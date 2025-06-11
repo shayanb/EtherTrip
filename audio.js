@@ -39,7 +39,9 @@ class PsychedelicAudioEngine {
     async init() {
         if (this.initialized) return;
         
+        console.log('Creating audio context...');
         this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        console.log('Audio context created, initial state:', this.audioContext.state);
         
         this.compressor = this.audioContext.createDynamicsCompressor();
         this.compressor.threshold.value = -24;
@@ -96,6 +98,7 @@ class PsychedelicAudioEngine {
         this.lfo.start();
         
         this.initialized = true;
+        console.log('Audio engine initialization complete, final context state:', this.audioContext.state);
         
         this.startSequencer();
     }
@@ -1290,11 +1293,23 @@ class PsychedelicAudioEngine {
         }
     }
     
-    unmute() {
+    async unmute() {
         this.isMuted = false;
         if (this.initialized) {
+            console.log('Unmuting - audio context state:', this.audioContext.state);
+            // Resume audio context if suspended (required for mobile)
+            if (this.audioContext.state === 'suspended') {
+                try {
+                    await this.audioContext.resume();
+                    console.log('Audio context resumed, new state:', this.audioContext.state);
+                } catch (error) {
+                    console.error('Failed to resume audio context:', error);
+                    return;
+                }
+            }
             const now = this.audioContext.currentTime;
             this.masterGain.gain.linearRampToValueAtTime(this.settings.masterVolume / 100, now + 0.1);
+            console.log('Audio unmuted successfully, volume set to:', this.settings.masterVolume / 100);
         }
     }
     

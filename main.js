@@ -4,7 +4,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     const audioEngine = new PsychedelicAudioEngine();
     const ethereum = new EthereumConnection();
     
-    await audioEngine.init();
+    // Detect mobile devices
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                     ('ontouchstart' in window) || 
+                     (navigator.maxTouchPoints > 0);
+    
+    // Initialize audio differently for mobile vs desktop
+    if (isMobile) {
+        // Don't initialize audio context yet on mobile - wait for unmute button
+        audioEngine.isMuted = true;
+        // Update mute button UI to show muted state
+        const muteBtn = document.getElementById('muteBtn');
+        muteBtn.classList.add('muted');
+        muteBtn.textContent = '🔇';
+        muteBtn.title = 'Unmute';
+    } else {
+        await audioEngine.init();
+    }
     
     // Default settings
     const defaultSettings = {
@@ -155,6 +171,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const totalTxs = transactions.length;
         const interval = totalTxs > 0 ? BLOCK_TIME / totalTxs : BLOCK_TIME;
         
+        console.log(`[processTransactionQueue] Processing ${totalTxs} transactions from queue.`);
+
         transactions.forEach((tx, index) => {
             setTimeout(() => {
                 if (tx.type === 'erc20') {
@@ -474,10 +492,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         showBtn.style.display = 'none';
     });
     
-    document.getElementById('muteBtn').addEventListener('click', () => {
+    document.getElementById('muteBtn').addEventListener('click', async () => {
         const btn = document.getElementById('muteBtn');
         if (btn.classList.contains('muted')) {
-            audioEngine.unmute();
+            // Initialize audio if needed (mobile case)
+            if (!audioEngine.initialized) {
+                console.log('Initializing audio engine...');
+                await audioEngine.init();
+                console.log('Audio engine initialized, context state:', audioEngine.audioContext?.state);
+            }
+            await audioEngine.unmute();
             btn.classList.remove('muted');
             btn.textContent = '🔊';
             btn.title = 'Mute';
@@ -489,33 +513,46 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
     
-    document.getElementById('pauseBtn').addEventListener('click', () => {
-        const btn = document.getElementById('pauseBtn');
-        if (btn.classList.contains('paused')) {
-            audioEngine.unpause();
-            btn.classList.remove('paused');
-            btn.textContent = '⏸️';
-            btn.title = 'Pause';
-        } else {
-            audioEngine.pause();
-            btn.classList.add('paused');
-            btn.textContent = '▶️';
-            btn.title = 'Play';
-        }
-    });
+    // Pause button functionality (if it exists)
+    const pauseBtn = document.getElementById('pauseBtn');
+    if (pauseBtn) {
+        pauseBtn.addEventListener('click', () => {
+            if (pauseBtn.classList.contains('paused')) {
+                audioEngine.unpause();
+                pauseBtn.classList.remove('paused');
+                pauseBtn.textContent = '⏸️';
+                pauseBtn.title = 'Pause';
+            } else {
+                audioEngine.pause();
+                pauseBtn.classList.add('paused');
+                pauseBtn.textContent = '▶️';
+                pauseBtn.title = 'Play';
+            }
+        });
+    }
     
     document.getElementById('surfModeBtn').addEventListener('click', () => {
         const btn = document.getElementById('surfModeBtn');
-        const surfMode = !visualizer.settings.surfMode;
-        visualizer.updateSettings({ surfMode: surfMode });
+        const currentSurfMode = visualizer.settings.surfMode;
+        const newSurfMode = !currentSurfMode;
         
-        if (surfMode) {
+        console.log('Before toggle - surfMode:', currentSurfMode, 'button classes:', btn.className);
+        
+        // Update the visualizer settings
+        visualizer.updateSettings({ surfMode: newSurfMode });
+        
+        console.log('After updateSettings - surfMode:', visualizer.settings.surfMode);
+        
+        // Update button appearance
+        if (newSurfMode) {
             btn.classList.add('active');
             btn.title = 'Exit Surf Mode';
         } else {
             btn.classList.remove('active');
-            btn.title = 'Toggle Surf Mode';
+            btn.title = 'Surf Mode';
         }
+        
+        console.log('After button update - button classes:', btn.className);
     });
     
     function updateStats() {

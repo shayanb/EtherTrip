@@ -742,14 +742,14 @@ class PsychedelicVisualizer {
         points.push(toPos.clone());
         
         // DEBUG: Log connection creation
-        console.log(`Creating connection:`, {
-            from: `(${fromPos.x.toFixed(0)}, ${fromPos.y.toFixed(0)}, ${fromPos.z.toFixed(0)})`,
-            to: `(${toPos.x.toFixed(0)}, ${toPos.y.toFixed(0)}, ${toPos.z.toFixed(0)})`,
-            midpoint: `(${midPoint.x.toFixed(0)}, ${midPoint.y.toFixed(0)}, ${midPoint.z.toFixed(0)})`,
-            distance: distance.toFixed(0),
-            arcHeight: arcHeight.toFixed(0),
-            isERC20
-        });
+        // console.log(`Creating connection:`, {
+        //     from: `(${fromPos.x.toFixed(0)}, ${fromPos.y.toFixed(0)}, ${fromPos.z.toFixed(0)})`,
+        //     to: `(${toPos.x.toFixed(0)}, ${toPos.y.toFixed(0)}, ${toPos.z.toFixed(0)})`,
+        //     midpoint: `(${midPoint.x.toFixed(0)}, ${midPoint.y.toFixed(0)}, ${midPoint.z.toFixed(0)})`,
+        //     distance: distance.toFixed(0),
+        //     arcHeight: arcHeight.toFixed(0),
+        //     isERC20
+        // });
         
         // Create more prominent graph edge visualization
         const curve = new THREE.CatmullRomCurve3(points);
@@ -1014,25 +1014,25 @@ class PsychedelicVisualizer {
             const isToAddressSmartContract = tx.to && tx.input && tx.input.length > 2;
             
             // DEBUG: Log transaction processing
-            if (showConnection) {
-                console.log(`Processing ${isERC20 ? 'ERC20' : 'ETH'} transaction:`, {
-                    from: tx.from?.slice(0, 8) + '...',
-                    to: tx.to?.slice(0, 8) + '...',
-                    value: value.toFixed(4),
-                    isSmartContract: isToAddressSmartContract
-                });
-            }
+            // if (showConnection) {
+            //     console.log(`Processing ${isERC20 ? 'ERC20' : 'ETH'} transaction:`, {
+            //         from: tx.from?.slice(0, 8) + '...',
+            //         to: tx.to?.slice(0, 8) + '...',
+            //         value: value.toFixed(4),
+            //         isSmartContract: isToAddressSmartContract
+            //     });
+            // }
             
             const fromNode = this.getOrCreateAddressNode(tx.from, false); // 'from' is typically an EOA
             const toNode = this.getOrCreateAddressNode(tx.to, isToAddressSmartContract);
             
             // DEBUG: Log node creation results
-            if (showConnection) {
-                console.log(`Nodes created:`, {
-                    fromNode: fromNode ? `${fromNode.userData.isSmartContract ? 'Contract' : 'EOA'} at (${fromNode.position.x.toFixed(0)}, ${fromNode.position.y.toFixed(0)}, ${fromNode.position.z.toFixed(0)})` : 'NULL',
-                    toNode: toNode ? `${toNode.userData.isSmartContract ? 'Contract' : 'EOA'} at (${toNode.position.x.toFixed(0)}, ${toNode.position.y.toFixed(0)}, ${toNode.position.z.toFixed(0)})` : 'NULL'
-                });
-            }
+            // if (showConnection) {
+            //     console.log(`Nodes created:`, {
+            //         fromNode: fromNode ? `${fromNode.userData.isSmartContract ? 'Contract' : 'EOA'} at (${fromNode.position.x.toFixed(0)}, ${fromNode.position.y.toFixed(0)}, ${fromNode.position.z.toFixed(0)})` : 'NULL',
+            //         toNode: toNode ? `${toNode.userData.isSmartContract ? 'Contract' : 'EOA'} at (${toNode.position.x.toFixed(0)}, ${toNode.position.y.toFixed(0)}, ${toNode.position.z.toFixed(0)})` : 'NULL'
+            //     });
+            // }
             
             if (fromNode && toNode && showConnection) {
                 // Create connection between sender and receiver nodes
@@ -1086,12 +1086,12 @@ class PsychedelicVisualizer {
         }
         
         // DEBUG: Log smart contract call processing
-        console.log(`Processing smart contract call:`, {
-            from: tx.from?.slice(0, 8) + '...',
-            to: tx.to?.slice(0, 8) + '...',
-            value: value.toFixed(4),
-            hasInput: !!(tx.input && tx.input.length > 2)
-        });
+        // console.log(`Processing smart contract call:`, {
+        //     from: tx.from?.slice(0, 8) + '...',
+        //     to: tx.to?.slice(0, 8) + '...',
+        //     value: value.toFixed(4),
+        //     hasInput: !!(tx.input && tx.input.length > 2)
+        // });
         
         // Create nodes: caller (EOA) and target contract (pyramid)
         const fromNode = this.getOrCreateAddressNode(tx.from, false); // Caller is EOA
