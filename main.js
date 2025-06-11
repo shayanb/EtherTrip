@@ -6,6 +6,134 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     await audioEngine.init();
     
+    // Default settings
+    const defaultSettings = {
+        // Connection settings
+        rpcEndpoint: 'wss://ethereum.publicnode.com',
+        customRpcEndpoint: '',
+        apiKey: '',
+        
+        // Audio settings
+        masterVolume: 50,
+        transactionPitch: 440,
+        blockBass: 80,
+        reverbAmount: 30,
+        filterCutoff: 2000,
+        filterResonance: 10,
+        delayTime: 375,
+        delayFeedback: 50,
+        soundStyle: 'minimal',
+        
+        // Visual settings
+        colorIntensity: 50,
+        particleCount: 1000,
+        rotationSpeed: 50,
+        waveAmplitude: 50,
+        itemLifespan: 8,
+        blockchainFocus: 30,
+        showAddressGraph: true
+    };
+    
+    // Load settings from localStorage
+    function loadSettings() {
+        const saved = localStorage.getItem('etherTripSettings');
+        return saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
+    }
+    
+    // Save settings to localStorage
+    function saveSettings(settings) {
+        localStorage.setItem('etherTripSettings', JSON.stringify(settings));
+    }
+    
+    // Apply settings to controls
+    function applySettingsToControls(settings) {
+        // Connection settings
+        document.getElementById('rpcEndpoint').value = settings.rpcEndpoint;
+        document.getElementById('customRpcEndpoint').value = settings.customRpcEndpoint;
+        
+        // Show custom input if needed
+        const customInput = document.getElementById('customRpcEndpoint');
+        if (settings.rpcEndpoint === 'custom') {
+            customInput.style.display = 'block';
+        }
+        
+        // Audio settings
+        document.getElementById('masterVolume').value = settings.masterVolume;
+        document.getElementById('transactionPitch').value = settings.transactionPitch;
+        document.getElementById('blockBass').value = settings.blockBass;
+        document.getElementById('reverbAmount').value = settings.reverbAmount;
+        document.getElementById('filterCutoff').value = settings.filterCutoff;
+        document.getElementById('filterResonance').value = settings.filterResonance;
+        document.getElementById('delayTime').value = settings.delayTime;
+        document.getElementById('delayFeedback').value = settings.delayFeedback;
+        document.getElementById('soundStyle').value = settings.soundStyle;
+        
+        // Visual settings
+        document.getElementById('colorIntensity').value = settings.colorIntensity;
+        document.getElementById('particleCount').value = settings.particleCount;
+        document.getElementById('rotationSpeed').value = settings.rotationSpeed;
+        document.getElementById('waveAmplitude').value = settings.waveAmplitude;
+        document.getElementById('itemLifespan').value = settings.itemLifespan;
+        document.getElementById('blockchainFocus').value = settings.blockchainFocus;
+        document.getElementById('showAddressGraph').checked = settings.showAddressGraph;
+        
+        // Apply settings to engines
+        visualizer.updateSettings({
+            colorIntensity: settings.colorIntensity / 100,
+            particleCount: parseInt(settings.particleCount),
+            rotationSpeed: settings.rotationSpeed / 100,
+            waveAmplitude: settings.waveAmplitude / 100,
+            itemLifespan: parseFloat(settings.itemLifespan),
+            blockchainFocus: settings.blockchainFocus / 100,
+            showAddressGraph: settings.showAddressGraph
+        });
+        
+        audioEngine.updateSettings({
+            masterVolume: parseInt(settings.masterVolume),
+            transactionPitch: parseInt(settings.transactionPitch),
+            blockBass: parseInt(settings.blockBass),
+            reverbAmount: settings.reverbAmount / 100,
+            filterCutoff: parseInt(settings.filterCutoff),
+            filterResonance: parseInt(settings.filterResonance),
+            delayTime: settings.delayTime / 1000,
+            delayFeedback: settings.delayFeedback / 100,
+            soundStyle: settings.soundStyle
+        });
+    }
+    
+    // Get current settings from controls
+    function getCurrentSettings() {
+        return {
+            // Connection settings
+            rpcEndpoint: document.getElementById('rpcEndpoint').value,
+            customRpcEndpoint: document.getElementById('customRpcEndpoint').value,
+            
+            // Audio settings
+            masterVolume: parseInt(document.getElementById('masterVolume').value),
+            transactionPitch: parseInt(document.getElementById('transactionPitch').value),
+            blockBass: parseInt(document.getElementById('blockBass').value),
+            reverbAmount: parseInt(document.getElementById('reverbAmount').value),
+            filterCutoff: parseInt(document.getElementById('filterCutoff').value),
+            filterResonance: parseInt(document.getElementById('filterResonance').value),
+            delayTime: parseInt(document.getElementById('delayTime').value),
+            delayFeedback: parseInt(document.getElementById('delayFeedback').value),
+            soundStyle: document.getElementById('soundStyle').value,
+            
+            // Visual settings
+            colorIntensity: parseInt(document.getElementById('colorIntensity').value),
+            particleCount: parseInt(document.getElementById('particleCount').value),
+            rotationSpeed: parseInt(document.getElementById('rotationSpeed').value),
+            waveAmplitude: parseInt(document.getElementById('waveAmplitude').value),
+            itemLifespan: parseFloat(document.getElementById('itemLifespan').value),
+            blockchainFocus: parseInt(document.getElementById('blockchainFocus').value),
+            showAddressGraph: document.getElementById('showAddressGraph').checked
+        };
+    }
+    
+    // Load and apply saved settings
+    const currentSettings = loadSettings();
+    applySettingsToControls(currentSettings);
+    
     let transactionQueue = [];
     let isProcessingQueue = false;
     const BLOCK_TIME = 12000; // 12 seconds in milliseconds
@@ -104,34 +232,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         alert('Connection error: ' + error.message);
     });
     
-    // Set random default public node or load saved RPC endpoint from localStorage
-    const savedEndpoint = localStorage.getItem('ethVisualizerRpcEndpoint');
-    const rpcSelect = document.getElementById('rpcEndpoint');
-    const customInput = document.getElementById('customRpcEndpoint');
-    
-    if (savedEndpoint) {
-        // Check if saved endpoint matches any dropdown options
-        const optionExists = Array.from(rpcSelect.options).some(option => option.value === savedEndpoint);
-        
-        if (optionExists) {
-            rpcSelect.value = savedEndpoint;
-        } else {
-            // Use custom option for saved endpoints not in dropdown
-            rpcSelect.value = 'custom';
-            customInput.value = savedEndpoint;
-            customInput.style.display = 'block';
-        }
-    } else {
-        // No saved endpoint, set random public node as default
-        const publicNodes = [
-            "wss://ethereum.publicnode.com",
-            "https://ethereum-rpc.publicnode.com",
-            "wss://eth.drpc.org",
-            "wss://ethereum-rpc.publicnode.com"
-       ];
-        const randomNode = publicNodes[Math.floor(Math.random() * publicNodes.length)];
-        rpcSelect.value = randomNode;
-    }
     
     // Handle RPC endpoint dropdown changes
     document.getElementById('rpcEndpoint').addEventListener('change', (e) => {
@@ -244,68 +344,114 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
     
+    // Helper function to save settings after any change
+    function saveCurrentSettings() {
+        const settings = getCurrentSettings();
+        saveSettings(settings);
+    }
+    
     document.getElementById('colorIntensity').addEventListener('input', (e) => {
         visualizer.updateSettings({ colorIntensity: e.target.value / 100 });
+        saveCurrentSettings();
     });
     
     document.getElementById('particleCount').addEventListener('input', (e) => {
         visualizer.updateSettings({ particleCount: parseInt(e.target.value) });
+        saveCurrentSettings();
     });
     
     document.getElementById('rotationSpeed').addEventListener('input', (e) => {
         visualizer.updateSettings({ rotationSpeed: e.target.value / 100 });
+        saveCurrentSettings();
     });
     
     document.getElementById('waveAmplitude').addEventListener('input', (e) => {
         visualizer.updateSettings({ waveAmplitude: e.target.value / 100 });
+        saveCurrentSettings();
     });
     
     document.getElementById('itemLifespan').addEventListener('input', (e) => {
         visualizer.updateSettings({ itemLifespan: parseFloat(e.target.value) });
+        saveCurrentSettings();
     });
     
     document.getElementById('blockchainFocus').addEventListener('input', (e) => {
         visualizer.updateSettings({ blockchainFocus: e.target.value / 100 });
+        saveCurrentSettings();
     });
     
     document.getElementById('masterVolume').addEventListener('input', (e) => {
         audioEngine.updateSettings({ masterVolume: parseInt(e.target.value) });
+        saveCurrentSettings();
     });
     
     document.getElementById('transactionPitch').addEventListener('input', (e) => {
         audioEngine.updateSettings({ transactionPitch: parseInt(e.target.value) });
+        saveCurrentSettings();
     });
     
     document.getElementById('blockBass').addEventListener('input', (e) => {
         audioEngine.updateSettings({ blockBass: parseInt(e.target.value) });
+        saveCurrentSettings();
     });
     
     document.getElementById('reverbAmount').addEventListener('input', (e) => {
         audioEngine.updateSettings({ reverbAmount: e.target.value / 100 });
+        saveCurrentSettings();
     });
     
     document.getElementById('filterCutoff').addEventListener('input', (e) => {
         audioEngine.updateSettings({ filterCutoff: parseInt(e.target.value) });
+        saveCurrentSettings();
     });
     
     document.getElementById('filterResonance').addEventListener('input', (e) => {
         audioEngine.updateSettings({ filterResonance: parseInt(e.target.value) });
+        saveCurrentSettings();
     });
     
     document.getElementById('delayTime').addEventListener('input', (e) => {
         audioEngine.updateSettings({ delayTime: e.target.value / 1000 });
+        saveCurrentSettings();
     });
     
     document.getElementById('delayFeedback').addEventListener('input', (e) => {
         audioEngine.updateSettings({ delayFeedback: e.target.value / 100 });
+        saveCurrentSettings();
     });
     
     document.getElementById('showAddressGraph').addEventListener('change', (e) => {
         visualizer.updateSettings({ showAddressGraph: e.target.checked });
+        saveCurrentSettings();
     });
     
     document.getElementById('soundStyle').addEventListener('change', (e) => {
         audioEngine.updateSettings({ soundStyle: e.target.value });
+        saveCurrentSettings();
+    });
+    
+    // RPC endpoint change should also save settings
+    document.getElementById('rpcEndpoint').addEventListener('change', (e) => {
+        saveCurrentSettings();
+    });
+    
+    document.getElementById('customRpcEndpoint').addEventListener('input', (e) => {
+        saveCurrentSettings();
+    });
+    
+    // Reset controls functionality
+    document.getElementById('resetControls').addEventListener('click', () => {
+        if (confirm('Reset all settings to default values?')) {
+            // Clear saved settings
+            localStorage.removeItem('etherTripSettings');
+            
+            // Apply default settings
+            applySettingsToControls(defaultSettings);
+            
+            // Force hide API key section and custom input
+            document.getElementById('apiKeySection').style.display = 'none';
+            document.getElementById('customRpcEndpoint').style.display = 'none';
+        }
     });
     
     // Toggle controls button (inside controls panel)
