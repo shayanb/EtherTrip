@@ -104,12 +104,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         alert('Connection error: ' + error.message);
     });
     
-    // Load saved RPC endpoint from localStorage
+    // Set random default public node or load saved RPC endpoint from localStorage
     const savedEndpoint = localStorage.getItem('ethVisualizerRpcEndpoint');
+    const rpcSelect = document.getElementById('rpcEndpoint');
+    const customInput = document.getElementById('customRpcEndpoint');
+    
     if (savedEndpoint) {
-        const rpcSelect = document.getElementById('rpcEndpoint');
-        const customInput = document.getElementById('customRpcEndpoint');
-        
         // Check if saved endpoint matches any dropdown options
         const optionExists = Array.from(rpcSelect.options).some(option => option.value === savedEndpoint);
         
@@ -121,6 +121,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             customInput.value = savedEndpoint;
             customInput.style.display = 'block';
         }
+    } else {
+        // No saved endpoint, set random public node as default
+        const publicNodes = [
+            "wss://ethereum.publicnode.com",
+            "https://ethereum-rpc.publicnode.com",
+            "wss://eth.drpc.org",
+            "wss://ethereum-rpc.publicnode.com"
+       ];
+        const randomNode = publicNodes[Math.floor(Math.random() * publicNodes.length)];
+        rpcSelect.value = randomNode;
     }
     
     // Handle RPC endpoint dropdown changes
@@ -298,19 +308,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         audioEngine.updateSettings({ soundStyle: e.target.value });
     });
     
+    // Toggle controls button (inside controls panel)
     document.getElementById('toggleControls').addEventListener('click', () => {
         const controls = document.getElementById('controls');
-        const btn = document.getElementById('toggleControls');
+        const toggleBtn = document.getElementById('toggleControls');
+        const showBtn = document.getElementById('showControls');
         
-        controls.classList.toggle('hidden');
+        controls.classList.add('hidden');
+        showBtn.style.display = 'flex';
+        showBtn.style.animation = 'fadeIn 0.3s ease';
+    });
+    
+    // Show controls button (in floating controls)
+    document.getElementById('showControls').addEventListener('click', () => {
+        const controls = document.getElementById('controls');
+        const showBtn = document.getElementById('showControls');
         
-        if (controls.classList.contains('hidden')) {
-            btn.textContent = '☰';
-            btn.title = 'Show Controls';
-        } else {
-            btn.textContent = '→';
-            btn.title = 'Hide Controls';
-        }
+        controls.classList.remove('hidden');
+        showBtn.style.display = 'none';
     });
     
     document.getElementById('muteBtn').addEventListener('click', () => {

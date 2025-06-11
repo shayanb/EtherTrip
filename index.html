@@ -32,6 +32,7 @@
     <div id="etherTripTitle" class="ether-trip-title">EtherTrip</div>
     
     <div id="controls" class="controls-panel">
+        <button id="toggleControls" class="controls-toggle-btn" title="Hide Controls">→</button>
         <h2>Controls</h2>
         
         <div class="control-section">
@@ -149,17 +150,40 @@
     </div>
     
     <div id="floatingControls" class="floating-controls">
-        <button id="toggleControls" class="floating-btn" title="Hide Controls">→</button>
+        <button id="showControls" class="floating-btn" title="Show Controls" style="display: none;">☰</button>
         <button id="muteBtn" class="floating-btn" title="Mute">🔊</button>
-        <button id="pauseBtn" class="floating-btn" title="Pause">⏸️</button>
+        <!-- <button id="pauseBtn" class="floating-btn" title="Pause">⏸️</button> -->
         <button id="surfModeBtn" class="floating-btn" title="Toggle Surf Mode">🏄</button>
     </div>
     
     <div id="stats" class="stats-panel">
-        <div>Blocks: <span id="blockCount">0</span></div>
-        <div>Transactions: <span id="txCount">0</span></div>
-        <div>ERC20 Transfers: <span id="erc20Count">0</span></div>
-        <div>Gas Price: <span id="gasPrice">0</span> Gwei</div>
+        <div class="stats-content">
+            <div class="stat-item">
+                <span class="stat-icon">📦</span>
+                <span class="stat-label">Blocks:</span>
+                <span class="stat-label-short"></span>
+                <span class="stat-value" id="blockCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">⚡</span>
+                <span class="stat-label">Transactions:</span>
+                <span class="stat-label-short"></span>
+                <span class="stat-value" id="txCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">🪙</span>
+                <span class="stat-label">ERC20 Transfers:</span>
+                <span class="stat-label-short"></span>
+                <span class="stat-value" id="erc20Count">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">⛽</span>
+                <span class="stat-label">Gas Price:</span>
+                <span class="stat-label-short"></span>
+                <span class="stat-value" id="gasPrice">0</span>
+                <span class="stat-unit"></span>
+            </div>
+        </div>
         
         <div class="stats-footer">
             <div class="social-links">

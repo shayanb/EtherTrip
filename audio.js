@@ -276,7 +276,7 @@ class PsychedelicAudioEngine {
         const now = this.audioContext.currentTime;
         const value = parseInt(tx.value || '0', 16);
         const valueInEth = value / 1e18;
-        const gasPrice = parseInt(tx.gasPrice || '0', 16);
+        const gasPrice = parseInt(tx.gasPrice || '0', 2);
         
         // VALUE-BASED AUDIO PROCESSING SYSTEM
         // This system works independently of sound packs and applies universal value-based changes
