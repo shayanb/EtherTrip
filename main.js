@@ -591,6 +591,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         hideWelcomePopup();
         // Trigger the connect button click
         document.getElementById('connectBtn').click();
+        
+        // Hide controls panel after 2 seconds
+        setTimeout(() => {
+            const controls = document.getElementById('controls');
+            const toggleBtn = document.getElementById('toggleControls');
+            const showBtn = document.getElementById('showControls');
+            
+            controls.classList.add('hidden');
+            showBtn.style.display = 'flex';
+            showBtn.style.animation = 'fadeIn 0.3s ease';
+        }, 2000);
     });
     
     document.getElementById('closeWelcome').addEventListener('click', () => {
@@ -613,11 +624,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, { once: true });
     
     console.log(`
-    ╔══════════════════════════════════════════╗
-    ║  ETHEREUM PSYCHEDELIC VISUALIZER         ║
-    ║  ────────────────────────────────────    ║
-    ║  Welcome to the Ethereum World Computer  ║
-    ║  Experience the blockchain in color      ║
-    ╚══════════════════════════════════════════╝
+    ╔════════════════════════════════════════╗
+    ║    ETHEREUM PSYCHEDELIC VISUALIZER     ║
+    ║  ────────────────────────────────────  ║
+    ║ Welcome to the Ethereum World Computer ║
+    ║ Experience the blockchain in color     ║
+    ║    perfect for your coffee break       ║
+    ║     (or you substance of choice)       ║
+    ╚════════════════════════════════════════╝
     `);
 });
