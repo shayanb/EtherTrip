@@ -157,6 +157,50 @@
         <button id="surfModeBtn" class="floating-btn" title="Toggle Surf Mode">🏄</button>
     </div>
     
+    <!-- Welcome Popup -->
+    <div id="welcomePopup" class="welcome-popup">
+        <div class="welcome-content">
+            <div class="welcome-header">
+                <h1>Welcome to EtherTrip</h1>
+                <div class="welcome-subtitle">Ethereum Blockchain Visualizer <br> (Psychedelic Edition) </div>
+            </div>
+            
+            <div class="welcome-body">
+                <p>Immerse yourself in the Ethereum galaxy! EtherTrip transforms real-time Ethereum blockchain data into an immersive 3D audiovisual journey.</p>
+                
+                <div class="welcome-features">
+                    <div class="feature">
+                        <span class="feature-icon">🌈</span>
+                        <span>Real-time 3D visualization of transactions and blocks</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">🎵</span>
+                        <span>Dynamic real-time customizable audio synthesis</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">🔗</span>
+                        <span>Live connection to Ethereum mainnet</span>
+                    </div>
+                </div>
+                
+                <p class="welcome-cta-text">Ready to dive into the Ether?</p>
+            </div>
+            
+            <div class="welcome-checkbox">
+                <label for="dontShowAgain">
+                    <input type="checkbox" id="dontShowAgain">
+                    <span class="checkmark"></span>
+                    Don't show this welcome message again
+                </label>
+            </div>
+            
+            <div class="welcome-actions">
+                <button id="connectFromWelcome" class="welcome-connect-btn">Connect to Ethereum</button>
+                <button id="closeWelcome" class="welcome-close-btn">Explore First</button>
+            </div>
+        </div>
+    </div>
+
     <div id="stats" class="stats-panel">
         <div class="stats-content">
             <div class="stat-item">

@@ -150,6 +150,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     const currentSettings = loadSettings();
     applySettingsToControls(currentSettings);
     
+    // Welcome popup logic
+    function checkShouldShowWelcome() {
+        const dontShowAgain = localStorage.getItem('etherTripDontShowWelcome');
+        return dontShowAgain !== 'true';
+    }
+    
+    function showWelcomePopup() {
+        const popup = document.getElementById('welcomePopup');
+        popup.classList.remove('hidden');
+    }
+    
+    function hideWelcomePopup() {
+        const popup = document.getElementById('welcomePopup');
+        const dontShowCheckbox = document.getElementById('dontShowAgain');
+        
+        popup.classList.add('hidden');
+        
+        // Only set localStorage if checkbox is checked
+        if (dontShowCheckbox.checked) {
+            localStorage.setItem('etherTripDontShowWelcome', 'true');
+        }
+    }
+    
+    // Show welcome popup unless user has opted out
+    if (checkShouldShowWelcome()) {
+        showWelcomePopup();
+    } else {
+        // Hide popup by default for users who opted out
+        document.getElementById('welcomePopup').classList.add('hidden');
+    }
+    
     let transactionQueue = [];
     let isProcessingQueue = false;
     const BLOCK_TIME = 12000; // 12 seconds in milliseconds
@@ -553,6 +584,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
         console.log('After button update - button classes:', btn.className);
+    });
+    
+    // Welcome popup event listeners
+    document.getElementById('connectFromWelcome').addEventListener('click', () => {
+        hideWelcomePopup();
+        // Trigger the connect button click
+        document.getElementById('connectBtn').click();
+    });
+    
+    document.getElementById('closeWelcome').addEventListener('click', () => {
+        hideWelcomePopup();
     });
     
     function updateStats() {
