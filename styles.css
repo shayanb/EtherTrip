@@ -41,13 +41,13 @@ body {
     position: absolute;
     top: 8px;
     left: 8px;
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background: rgba(0, 0, 0, 0.9);
     border: 2px solid #00ffff;
     color: #00ffff;
-    font-size: 16px;
+    font-size: 18px;
     cursor: pointer;
     transition: all 0.3s ease;
     backdrop-filter: blur(10px);
@@ -55,6 +55,7 @@ body {
     align-items: center;
     justify-content: center;
     box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+    animation: psychedelic-gradient 3s ease-in-out infinite, title-glow 2s ease-in-out infinite alternate;
     z-index: 1;
 }
 
@@ -487,7 +488,7 @@ select option {
     top: 20px;
     left: 20px;
     z-index: 15;
-    font-size: 28px;
+    font-size: 32px;
     font-weight: bold;
     font-family: 'Courier New', monospace;
     background: linear-gradient(45deg, #ff00ff, #00ffff, #ffff00, #ff00ff);
@@ -804,9 +805,9 @@ select option {
         margin-right: 8px;
     }
     
-    /* Fix floating controls for mobile - make them vertical */
+    /* Fix floating controls for mobile - make them vertical and reverse order */
     .floating-controls {
-        flex-direction: column;
+        flex-direction: column-reverse;
         right: 10px;
         top: 10px;
         gap: 8px;
@@ -821,7 +822,7 @@ select option {
     /* Fix controls panel buttons for mobile */
     .controls-panel {
         right: 10px;
-        top: 80px;
+        top: 120px;
         width: calc(100vw - 20px);
         max-width: 320px;
     }
@@ -830,14 +831,21 @@ select option {
     .controls-reset-btn {
         width: 28px;
         height: 28px;
-        font-size: 14px;
+        font-size: 16px;
         top: 6px;
     }
     
     .controls-toggle-btn {
         left: 6px;
+        width: 40px !important;
+        height: 40px !important;
     }
     
+    .controls-toggle-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 0 30px rgba(0, 255, 255, 0.6);
+        background: rgba(0, 255, 255, 0.1);
+    }
     .controls-reset-btn {
         right: 6px;
     }
